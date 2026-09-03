@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ business.name }} — Déjanos tu opinión</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>{{ business.name }}</h1>
+    <p class="subtitle">¡Gracias por visitarnos! Tu opinión nos ayuda muchísimo.</p>
+
+    <!-- Un solo click hasta Google, para todos. Sin filtros ni pasos previos:
+         cada click intermedio pierde clientes, y segmentar por calificación
+         antes de enviar a Google va contra las políticas de Google. -->
+    <a class="btn btn-primary" href="/r/{{ placement.token }}/go">
+      Dejar reseña en Google
+    </a>
+
+    <button type="button" class="link-secondary" id="private-toggle">
+      ¿Tuviste un problema? Cuéntanos en privado
+    </button>
+
+    <section id="private-panel" class="private-panel" hidden>
+      <p class="subtitle">
+        Esto llega directo al equipo de {{ business.name }} y no se publica en ningún lado.
+      </p>
+      <form method="post" action="/r/{{ placement.token }}/feedback">
+        <label>
+          ¿Cómo calificarías tu experiencia? (opcional)
+          <select name="rating">
+            <option value="">Prefiero no decirlo</option>
+            <option value="1">1 — Muy mala</option>
+            <option value="2">2 — Mala</option>
+            <option value="3">3 — Regular</option>
+            <option value="4">4 — Buena</option>
+            <option value="5">5 — Excelente</option>
+          </select>
+        </label>
+        <label>
+          Tu contacto (opcional, si quieres que te respondan)
+          <input type="text" name="contact" placeholder="Teléfono o correo" />
+        </label>
+        <label>
+          Cuéntanos qué pasó
+          <textarea name="message" rows="4" placeholder="Tu comentario..."></textarea>
+        </label>
+        <button type="submit" class="btn btn-secondary">Enviar en privado</button>
+      </form>
+      <p class="legal">
+        Usaremos lo que nos escribas solo para responderte y mejorar el servicio.
+      </p>
+    </section>
+  </main>
+
+  <script src="/static/landing.js"></script>
+</body>
+</html>

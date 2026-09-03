@@ -1,0 +1,39 @@
+# Blueprint de despliegue para Render.com.
+#
+# Render lee este archivo desde el repo y arma el servicio solo. Las variables
+# marcadas sync:false NO van aquí: se cargan a mano en el panel de Render para
+# no dejar secretos ni la cadena de conexión escritos en el repositorio.
+#
+# Antes del primer despliegue:
+#   1. Crear el Postgres gratuito en Supabase o Neon y copiar su cadena de
+#      conexión (formato postgresql+psycopg://usuario:clave@host:5432/base).
+#   2. Definir BASE_URL con el dominio DEFINITIVO. Si se imprimen placas con la
+#      URL de onrender.com y después se migra, esas placas mueren.
+
+services:
+  - type: web
+    name: nfc-review-analytics
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    # Migrar antes de arrancar: así un despliegue con cambios de esquema los
+    # aplica solo, sin perder los datos del cliente.
+    # Render entrega el puerto en $PORT; escuchar en 0.0.0.0 es obligatorio
+    # para que el contenedor sea alcanzable desde fuera.
+    startCommand: alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: DATABASE_URL
+        sync: false
+      # Render la genera sola. Si cambiara, se cerrarían todas las sesiones.
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: BASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false

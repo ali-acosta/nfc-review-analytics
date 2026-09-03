@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Informe {{ period_label }} — {{ business.name }}</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 15mm 14mm;
+      @bottom-center {
+        content: "Informe de reseñas · {{ business.name }} · {{ period_label }} · página " counter(page);
+        font-family: Helvetica, Arial, sans-serif;
+        font-size: 8pt;
+        color: #8a938f;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.5;
+      color: #1d2624;
+      background: #ffffff;
+    }
+
+    .masthead {
+      border-bottom: 2.5pt solid #16607d;
+      padding-bottom: 10pt;
+      margin-bottom: 20pt;
+    }
+    .kicker {
+      font-size: 7.5pt;
+      letter-spacing: 1.4pt;
+      text-transform: uppercase;
+      color: #16607d;
+      margin: 0 0 5pt;
+    }
+    h1 { font-size: 20pt; margin: 0 0 4pt; font-weight: 600; letter-spacing: -.3pt; }
+    .sub { font-size: 10.5pt; color: #5c6b68; margin: 0; }
+    .issued { font-size: 8pt; color: #8a938f; margin: 6pt 0 0; }
+
+    h2 {
+      font-size: 11pt;
+      margin: 22pt 0 9pt;
+      padding-bottom: 4pt;
+      border-bottom: .75pt solid #dde3e1;
+      font-weight: 600;
+    }
+    h2:first-of-type { margin-top: 0; }
+    p { margin: 0 0 9pt; }
+
+    /* ---- KPIs: table layout so every print engine agrees ---- */
+    table.kpis { width: 100%; border-collapse: separate; border-spacing: 6pt 0; margin: 0 0 4pt; }
+    table.kpis td {
+      width: 25%;
+      border: .75pt solid #dde3e1;
+      border-radius: 4pt;
+      padding: 9pt 10pt;
+      vertical-align: top;
+      background: #fafbfb;
+    }
+    .kpi-label { font-size: 7.5pt; letter-spacing: .7pt; text-transform: uppercase; color: #6b7a76; margin-bottom: 4pt; }
+    .kpi-value { font-size: 21pt; font-weight: 600; line-height: 1; letter-spacing: -.5pt; }
+    .kpi-value.accent { color: #16607d; }
+    .kpi-delta { font-size: 8pt; margin-top: 5pt; }
+    .up { color: #2f6b45; }
+    .down { color: #9a3b2c; }
+    .flat { color: #8a938f; }
+
+    .insight {
+      border-left: 2.5pt solid #16607d;
+      background: #f1f7f9;
+      padding: 9pt 12pt;
+      margin: 14pt 0 0;
+      font-size: 9.5pt;
+    }
+    .insight b { color: #16607d; }
+
+    /* ---- horizontal bars ---- */
+    table.bars { width: 100%; border-collapse: collapse; }
+    table.bars td { padding: 4pt 0; vertical-align: middle; border: none; }
+    td.bar-name { width: 26%; font-size: 9.5pt; padding-right: 8pt; }
+    td.bar-track { width: 56%; }
+    td.bar-num { width: 18%; text-align: right; font-size: 9.5pt; font-weight: 600; white-space: nowrap; }
+    .track { background: #eaefee; border-radius: 2pt; height: 13pt; width: 100%; }
+    .fill { background: #16607d; border-radius: 2pt; height: 13pt; }
+    .fill.pale { background: #9dc3d1; }
+    .bar-sub { font-size: 8pt; color: #8a938f; font-weight: 400; }
+
+    /* ---- daily columns ---- */
+    .daily { border: .75pt solid #dde3e1; border-radius: 4pt; padding: 10pt 10pt 6pt; }
+    .cols { height: 68pt; white-space: nowrap; overflow: hidden; }
+    .col { display: inline-block; vertical-align: bottom; height: 100%; text-align: center; }
+    .col .stem { background: #16607d; border-radius: 1.5pt 1.5pt 0 0; margin: 0 auto; width: 60%; }
+    .col .zero { background: #eaefee; height: 1.5pt; margin: 0 auto; width: 60%; }
+    .daily-axis { margin-top: 5pt; font-size: 7.5pt; color: #8a938f; }
+    .daily-axis .l { float: left; }
+    .daily-axis .r { float: right; }
+    .clear { clear: both; }
+
+    /* ---- feedback ---- */
+    .fb {
+      border: .75pt solid #dde3e1;
+      border-left: 2pt solid #b8563f;
+      border-radius: 3pt;
+      padding: 8pt 10pt;
+      margin-bottom: 7pt;
+      page-break-inside: avoid;
+    }
+    .fb-head { font-size: 8pt; color: #8a938f; margin-bottom: 4pt; }
+    .fb-head b { color: #1d2624; }
+    .fb-msg { font-size: 9.5pt; margin: 0; }
+    .fb-contact { font-size: 8.5pt; color: #16607d; margin-top: 4pt; }
+
+    .empty {
+      border: .75pt dashed #dde3e1;
+      border-radius: 4pt;
+      padding: 14pt;
+      text-align: center;
+      color: #8a938f;
+      font-size: 9.5pt;
+    }
+
+    .note { font-size: 8pt; color: #8a938f; margin-top: 18pt; padding-top: 8pt; border-top: .75pt solid #eaefee; }
+  </style>
+</head>
+<body>
+
+  <header class="masthead">
+    <p class="kicker">Informe mensual de reseñas</p>
+    <h1>{{ business.name }}</h1>
+    <p class="sub">{{ period_label }}</p>
+    <p class="issued">Generado el {{ generated_on }}</p>
+  </header>
+
+  <h2>Resumen del mes</h2>
+
+  <table class="kpis">
+    <tr>
+      <td>
+        <div class="kpi-label">Visitas únicas</div>
+        <div class="kpi-value">{{ kpis.visits }}</div>
+        {% if deltas.visits %}
+        <div class="kpi-delta {{ 'up' if deltas.visits.up else 'down' }}">
+          {{ '▲' if deltas.visits.up else '▼' }} {{ '%.0f'|format(deltas.visits.pct) }}% vs {{ prev_label }}
+        </div>
+        {% else %}
+        <div class="kpi-delta flat">sin mes anterior</div>
+        {% endif %}
+      </td>
+      <td>
+        <div class="kpi-label">Fueron a Google</div>
+        <div class="kpi-value">{{ kpis.clicks }}</div>
+        {% if deltas.clicks %}
+        <div class="kpi-delta {{ 'up' if deltas.clicks.up else 'down' }}">
+          {{ '▲' if deltas.clicks.up else '▼' }} {{ '%.0f'|format(deltas.clicks.pct) }}% vs {{ prev_label }}
+        </div>
+        {% else %}
+        <div class="kpi-delta flat">sin mes anterior</div>
+        {% endif %}
+      </td>
+      <td>
+        <div class="kpi-label">Conversión</div>
+        <div class="kpi-value accent">{{ '%.0f'|format(kpis.conversion) }}%</div>
+        {% if deltas.conversion %}
+        <div class="kpi-delta {{ 'up' if deltas.conversion.up else 'down' }}">
+          {{ '▲' if deltas.conversion.up else '▼' }} {{ '%.0f'|format(deltas.conversion.pct) }}% vs {{ prev_label }}
+        </div>
+        {% else %}
+        <div class="kpi-delta flat">sin mes anterior</div>
+        {% endif %}
+      </td>
+      <td>
+        <div class="kpi-label">Quejas privadas</div>
+        <div class="kpi-value">{{ kpis.feedback }}</div>
+        <div class="kpi-delta flat">interceptadas antes de ser públicas</div>
+      </td>
+    </tr>
+  </table>
+
+  {% if kpis.visits %}
+  <div class="insight">
+    {% if best_placement %}
+    De cada 100 personas que tocaron una placa, <b>{{ '%.0f'|format(kpis.conversion) }} llegaron a dejar
+    su reseña en Google</b>. El soporte con mejor rendimiento fue
+    <b>{{ best_placement.label }}</b>, con {{ '%.0f'|format(best_placement.conversion) }}% de conversión.
+    {% endif %}
+    {% if kpis.feedback %}
+    Además, {{ kpis.feedback }} cliente{{ 's' if kpis.feedback != 1 else '' }}
+    {{ 'eligieron' if kpis.feedback != 1 else 'eligió' }} escribirle directamente al negocio en vez
+    de publicar — {{ 'son oportunidades' if kpis.feedback != 1 else 'es una oportunidad' }} de
+    resolver el problema en privado.
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <h2>Rendimiento por soporte</h2>
+
+  {% if placements %}
+  <p>Cuánto convierte cada placa instalada. Sirve para decidir dónde conviene reforzar o mover.</p>
+  <table class="bars">
+    {% for p in placements %}
+    <tr>
+      <td class="bar-name">{{ p.label }}</td>
+      <td class="bar-track">
+        <div class="track">
+          <div class="fill{{ '' if loop.first else ' pale' }}" style="width: {{ '%.0f'|format(p.conversion) }}%;"></div>
+        </div>
+      </td>
+      <td class="bar-num">
+        {{ '%.0f'|format(p.conversion) }}%
+        <span class="bar-sub">&nbsp;{{ p.clicks }}/{{ p.visitas }}</span>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <div class="empty">Todavía no hay visitas registradas en este período.</div>
+  {% endif %}
+
+  <h2>Visitas por día</h2>
+
+  {% if daily %}
+  <div class="daily">
+    <div class="cols">
+      {% for d in daily %}
+      <div class="col" style="width: {{ '%.2f'|format(100 / daily|length) }}%;">
+        {% if max_daily and d.visitas %}
+        <div class="stem" style="height: {{ '%.0f'|format(d.visitas / max_daily * 100) }}%;"></div>
+        {% else %}
+        <div class="zero"></div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="daily-axis">
+      <span class="l">{{ daily[0].fecha.strftime('%d-%m') }}</span>
+      <span class="r">{{ daily[-1].fecha.strftime('%d-%m') }} · máximo {{ max_daily }} visitas en un día</span>
+      <div class="clear"></div>
+    </div>
+  </div>
+  {% else %}
+  <div class="empty">Sin visitas registradas en este período.</div>
+  {% endif %}
+
+  <h2>Comentarios privados recibidos</h2>
+
+  {% if feedback %}
+  {% for f in feedback %}
+  <div class="fb">
+    <div class="fb-head">
+      {{ f.created_at.strftime('%d-%m-%Y %H:%M') }} · <b>{{ f.label }}</b>
+      {% if f.rating %} · {{ f.rating }} de 5 estrellas{% endif %}
+    </div>
+    <p class="fb-msg">{{ f.message or '(sin mensaje)' }}</p>
+    {% if f.contact %}
+    <div class="fb-contact">Contacto dejado por el cliente: {{ f.contact }}</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="empty">Ningún cliente dejó comentarios privados este mes.</div>
+  {% endif %}
+
+  <p class="note">
+    Las visitas cuentan personas, no recargas de página: un mismo visitante que abre la página
+    varias veces cuenta una sola vez, y el tráfico automatizado se excluye. La conversión mide
+    cuántos visitantes llegaron a la pantalla de reseña de Google; la publicación final de la
+    reseña ocurre dentro de Google y no es visible desde aquí.
+  </p>
+
+</body>
+</html>

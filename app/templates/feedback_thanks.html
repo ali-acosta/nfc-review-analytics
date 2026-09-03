@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gracias — {{ business.name }}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>¡Gracias!</h1>
+    <p class="subtitle">
+      Tu comentario fue enviado directamente al equipo de {{ business.name }}.
+      Si más adelante quieres dejar también tu reseña pública en Google, siempre puedes hacerlo aquí:
+    </p>
+    <a class="btn btn-primary" href="{{ business.google_review_url }}">Dejar reseña en Google</a>
+  </main>
+</body>
+</html>

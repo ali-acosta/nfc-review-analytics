@@ -1,0 +1,18 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+*.db
+qrcodes/
+.DS_Store
+informes/
+exportaciones/
+
+# Caches de herramientas
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Editores
+.vscode/
+.idea/

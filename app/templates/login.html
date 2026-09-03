@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Entrar al panel</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>Panel de reseñas</h1>
+    <p class="subtitle">Entra con el correo y la contraseña que te entregamos.</p>
+
+    {% if error %}
+    <p class="form-error" role="alert">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/panel/login" class="login-form">
+      <label>
+        Correo
+        <input type="email" name="email" value="{{ email }}" autocomplete="username"
+               required autofocus />
+      </label>
+      <label>
+        Contraseña
+        <input type="password" name="password" autocomplete="current-password" required />
+      </label>
+      <button type="submit" class="btn btn-primary">Entrar</button>
+    </form>
+  </main>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# Dependencias solo de desarrollo. No se instalan en producción para mantener
+# liviano el build en la capa gratuita de hosting.
+-r requirements.txt
+
+pytest>=8.0,<9.0

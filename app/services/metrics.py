@@ -1,0 +1,135 @@
+"""Single source of truth for every number the client is shown.
+
+The dashboard and the monthly PDF report both read from here on purpose: if a
+report said 33% and the panel said 41% for the same month, the product would
+lose the only thing it sells — a number the business owner can trust.
+
+Rules encoded here, and nowhere else:
+  · a visitor is a session, never a row (a reload is not a second visit);
+  · bots never count;
+  · conversion divides unique converting sessions by unique visiting sessions;
+  · time is bucketed in the business's local timezone, never in UTC.
+"""
+
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+import pandas as pd
+from sqlalchemy import select
+
+from app.config import settings
+from app.database import SessionLocal
+from app.models import Feedback, Placement, Tap
+
+TAP_COLUMNS = ["created_at", "session_id", "outcome", "label"]
+FEEDBACK_COLUMNS = ["id", "created_at", "rating", "contact", "message", "label", "resolved_at"]
+
+
+def _to_local(series: pd.Series) -> pd.Series:
+    """Pasa los instantes guardados (UTC) a hora local del negocio, sin zona.
+
+    Todo lo que viene después —filtrar por mes, agrupar por día— trabaja en
+    hora local, que es la única con la que el dueño puede contrastar lo que
+    vio en su local. En UTC, la cena de un restaurante chileno cae al día
+    siguiente y el último día del mes se va al informe del mes siguiente.
+
+    SQLite devuelve datetimes sin zona y Postgres con ella; `utc=True` los
+    normaliza a ambos antes de convertir.
+    """
+    utc = pd.to_datetime(series, utc=True, errors="coerce")
+    return utc.dt.tz_convert(ZoneInfo(settings.timezone)).dt.tz_localize(None)
+
+
+def load_taps(business_id: int) -> pd.DataFrame:
+    with SessionLocal() as db:
+        rows = db.execute(
+            select(Tap.created_at, Tap.session_id, Tap.outcome, Placement.label)
+            .join(Placement, Tap.placement_id == Placement.id)
+            .where(Tap.business_id == business_id, Tap.is_bot.is_(False))
+        ).all()
+    df = pd.DataFrame(rows, columns=TAP_COLUMNS)
+    if not df.empty:
+        df["created_at"] = _to_local(df["created_at"])
+    return df
+
+
+def load_feedback(business_id: int) -> pd.DataFrame:
+    with SessionLocal() as db:
+        rows = db.execute(
+            select(
+                Feedback.id,
+                Feedback.created_at,
+                Feedback.rating,
+                Feedback.contact,
+                Feedback.message,
+                Placement.label,
+                Feedback.resolved_at,
+            )
+            .join(Placement, Feedback.placement_id == Placement.id)
+            .where(Feedback.business_id == business_id)
+            .order_by(Feedback.created_at.desc())
+        ).all()
+    df = pd.DataFrame(rows, columns=FEEDBACK_COLUMNS)
+    if not df.empty:
+        # Ambas fechas en hora local: mezclar husos dentro de la misma tabla
+        # confunde a cualquiera que la exporte y compare las dos columnas.
+        df["created_at"] = _to_local(df["created_at"])
+        df["resolved_at"] = _to_local(df["resolved_at"])
+    return df
+
+
+def month_bounds(year: int, month: int) -> tuple[datetime, datetime]:
+    """[start, end) for a calendar month."""
+    start = datetime(year, month, 1)
+    end = datetime(year + 1, 1, 1) if month == 12 else datetime(year, month + 1, 1)
+    return start, end
+
+
+def previous_month(year: int, month: int) -> tuple[int, int]:
+    return (year - 1, 12) if month == 1 else (year, month - 1)
+
+
+def in_period(df: pd.DataFrame, start: datetime, end: datetime) -> pd.DataFrame:
+    if df.empty:
+        return df
+    return df[(df["created_at"] >= start) & (df["created_at"] < end)]
+
+
+def unique_sessions(taps: pd.DataFrame, outcome: str) -> int:
+    if taps.empty:
+        return 0
+    return int(taps.loc[taps["outcome"] == outcome, "session_id"].nunique())
+
+
+def funnel(taps: pd.DataFrame) -> dict:
+    visits = unique_sessions(taps, "landed")
+    clicks = unique_sessions(taps, "went_to_google")
+    return {
+        "visits": visits,
+        "clicks": clicks,
+        # Denominator is unique visitors, not raw event rows: a visitor who
+        # converts must not also inflate the number they are divided by.
+        "conversion": (clicks / visits * 100) if visits else 0.0,
+    }
+
+
+def by_placement(taps: pd.DataFrame) -> pd.DataFrame:
+    """Per physical support: visits, clicks and conversion, best first."""
+    if taps.empty:
+        return pd.DataFrame(columns=["label", "visitas", "clicks", "conversion"])
+
+    visits = taps[taps["outcome"] == "landed"].groupby("label")["session_id"].nunique()
+    clicks = taps[taps["outcome"] == "went_to_google"].groupby("label")["session_id"].nunique()
+    out = pd.DataFrame({"visitas": visits, "clicks": clicks}).fillna(0).astype(int)
+    out["conversion"] = (out["clicks"] / out["visitas"] * 100).where(out["visitas"] > 0, 0.0)
+    return out.reset_index().sort_values("conversion", ascending=False)
+
+
+def by_day(taps: pd.DataFrame) -> pd.DataFrame:
+    if taps.empty:
+        return pd.DataFrame(columns=["fecha", "visitas"])
+    landed = taps[taps["outcome"] == "landed"].copy()
+    if landed.empty:
+        return pd.DataFrame(columns=["fecha", "visitas"])
+    landed["fecha"] = landed["created_at"].dt.date
+    return landed.groupby("fecha")["session_id"].nunique().reset_index(name="visitas")

@@ -1,0 +1,26 @@
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
+sqlalchemy>=2.0,<3.0
+alembic>=1.13,<2.0
+# Driver de Postgres. En local no se usa (SQLite), pero va aquí para que el
+# despliegue no falle al cambiar DATABASE_URL.
+psycopg[binary]>=3.1,<4.0
+jinja2>=3.1,<4.0
+python-multipart>=0.0.9
+pydantic-settings>=2.4,<3.0
+dash>=2.17,<3.0
+pandas>=2.2,<3.0
+# Base de datos de zonas horarias IANA. Windows no la trae, y de ella depende
+# que los informes cuadren con el día local del negocio. Declarada explícita
+# aunque hoy llegue por pandas: no puede depender de una dependencia ajena.
+tzdata>=2024.1
+a2wsgi>=1.10,<2.0
+qrcode[pil]>=7.4,<8.0
+httpx>=0.27,<1.0
+
+# WeasyPrint (PDF) queda deliberadamente FUERA de este archivo: necesita
+# librerías nativas de GTK que no están garantizadas en el hosting, y un build
+# que falla es peor que no adjuntar un PDF. El informe se entrega como HTML
+# (que imprime a PDF desde el navegador con calidad idéntica) y el envío mensual
+# manda el enlace. Donde sí haya librerías nativas —el workflow de GitHub
+# Actions las instala— basta con: pip install weasyprint
