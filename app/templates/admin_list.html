@@ -21,6 +21,7 @@
       <th class="num">Visitas</th>
       <th class="num">Conversión</th>
       <th class="num">Quejas sin atender</th>
+      <th>Actividad</th>
       <th>Estado</th>
       <th></th>
     </tr>
@@ -43,6 +44,17 @@
         {% endif %}
       </td>
       <td>
+        {% if c.sin_estrenar %}
+        <span class="etiqueta alerta">sin estrenar</span>
+        {% elif c.dias_sin_actividad == 0 %}
+        <span class="etiqueta ok">hoy</span>
+        {% elif c.dias_sin_actividad <= 3 %}
+        hace {{ c.dias_sin_actividad }} día{{ 's' if c.dias_sin_actividad != 1 else '' }}
+        {% else %}
+        <span class="etiqueta alerta">{{ c.dias_sin_actividad }} días sin uso</span>
+        {% endif %}
+      </td>
+      <td>
         {% if not c.tiene_acceso %}
         <span class="etiqueta alerta">sin acceso al panel</span>
         {% endif %}
@@ -60,9 +72,14 @@
 </table>
 
 <p class="apunte pie">
-  "Sin alertas" significa que el dueño no recibirá aviso cuando le dejen una queja privada, que es
-  la razón principal por la que un cliente sigue pagando. "Sin acceso al panel" significa que no
-  tiene correo ni contraseña con los que entrar a ver sus números.
+  <strong>Actividad</strong> es cuándo se usó por última vez una placa de ese cliente. Varios días
+  sin uso suele significar una placa despegada, tapada o que el local dejó de ponerla a la vista:
+  el cliente sigue pagando y no está pasando nada. Conviene llamarlo antes de que lo note él.
+  <br />
+  <strong>“Sin alertas”</strong> significa que el dueño no recibirá aviso cuando le dejen una queja
+  privada, que es la razón principal por la que un cliente sigue pagando.
+  <strong>“Sin acceso al panel”</strong> significa que no tiene correo ni contraseña con los que
+  entrar a ver sus números.
 </p>
 {% else %}
 <div class="vacio">

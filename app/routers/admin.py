@@ -20,12 +20,13 @@ cliente, que solo puede dañarse a sí mismo; quien entre aquí ve las quejas
 privadas y los enlaces de toda la cartera.
 """
 
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -33,6 +34,7 @@ from app.database import get_db
 from app.models import Business, Feedback, Placement, Tap, new_token
 from app.services import admin_auth, metrics
 from app.services.auth import generate_password, hash_password
+from app.services.notify import notify
 from app.services.ratelimit import client_ip, login_limiter
 
 router = APIRouter(prefix="/admin")
@@ -92,6 +94,20 @@ def _resumen(db: Session, business: Business) -> dict:
         .where(Feedback.business_id == business.id, Feedback.resolved_at.is_(None))
     )
     embudo = metrics.funnel(metrics.load_taps(business.id))
+
+    # Cuándo se usó por última vez una placa de este cliente. Es el dato que
+    # delata una placa despegada, un chip reescrito o un local que dejó de
+    # ponerla a la vista: el cliente sigue pagando y no está pasando nada. Sin
+    # esto, el operador se entera cuando el cliente se va.
+    ultimo = db.scalar(
+        select(func.max(Tap.created_at)).where(Tap.business_id == business.id, Tap.is_bot.is_(False))
+    )
+    dias_sin_actividad = None
+    if ultimo is not None:
+        if ultimo.tzinfo is None:
+            ultimo = ultimo.replace(tzinfo=timezone.utc)
+        dias_sin_actividad = (datetime.now(timezone.utc) - ultimo).days
+
     return {
         "business": business,
         "placas": placas or 0,
@@ -100,7 +116,23 @@ def _resumen(db: Session, business: Business) -> dict:
         "conversion": embudo["conversion"],
         "tiene_acceso": bool(business.password_hash),
         "tiene_alertas": bool(business.alert_email or business.telegram_chat_id),
+        "dias_sin_actividad": dias_sin_actividad,
+        "sin_estrenar": ultimo is None,
     }
+
+
+def _nombre_archivo(nombre: str) -> str:
+    """Nombre de archivo seguro para la cabecera Content-Disposition.
+
+    Las cabeceras HTTP son ASCII: un nombre con tilde o ñ llega al navegador
+    convertido en basura y el archivo se descarga ilegible. Se translitera lo
+    que se pueda y se descarta el resto.
+    """
+    import unicodedata
+
+    plano = unicodedata.normalize("NFKD", nombre).encode("ascii", "ignore").decode("ascii")
+    limpio = "".join(c if c.isalnum() or c in "-_" else "-" for c in plano.lower()).strip("-")
+    return f"placas-{limpio or 'cliente'}.html"
 
 
 def _base() -> str:
@@ -350,3 +382,101 @@ def rotar(token: str, request: Request, db: Session = Depends(get_db)):
 
     # Redirige al token NUEVO: la URL vieja ya no apunta a nada.
     return RedirectResponse(f"/admin/{business.dashboard_token}?rotado=1", status_code=302)
+
+
+@router.get("/{token}/placas.html", dependencies=[Depends(_exigir_sesion)])
+def hoja_de_placas(token: str, descargar: int = 0, db: Session = Depends(get_db)):
+    """La hoja que se le manda a quien fabrica las placas.
+
+    Se genera aquí y no solo por CLI porque es el paso siguiente natural después
+    de dar de alta un cliente: se crean sus placas y de inmediato hay que mandar
+    a fabricarlas. Los QR van embebidos, así que el archivo descargado funciona
+    solo, sin depender de que el servidor esté encendido cuando el proveedor lo
+    abra.
+    """
+    from scripts.qr_sheet import construir
+
+    business = _cliente_o_404(db, token)
+    placements = db.scalars(
+        select(Placement).where(Placement.business_id == business.id).order_by(Placement.id)
+    ).all()
+    if not placements:
+        raise HTTPException(status_code=404, detail="Este cliente no tiene placas")
+
+    html = construir(business, placements)
+
+    if not descargar:
+        return HTMLResponse(html)
+
+    return Response(
+        content=html,
+        media_type="text/html; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{_nombre_archivo(business.name)}"'},
+    )
+
+
+@router.post("/{token}/probar-alerta", response_class=HTMLResponse, dependencies=[Depends(_exigir_sesion)])
+async def probar_alerta(token: str, request: Request, db: Session = Depends(get_db)):
+    """Manda un aviso de prueba por los canales configurados del cliente.
+
+    Sin esto, que el correo esté mal escrito se descubre el día que un cliente
+    real deja una queja y el dueño no se entera: justo la alerta que sostiene la
+    suscripción, perdida en silencio. Vale más comprobarlo el día del alta.
+    """
+    business = _cliente_o_404(db, token)
+
+    if not business.alert_email and not business.telegram_chat_id:
+        return _ficha(
+            request, db, business,
+            ok="Este cliente no tiene ningún canal configurado, así que no hay a dónde avisar.",
+        )
+
+    entregado = await notify(
+        business,
+        f"Prueba de alertas — {business.name}",
+        "Este es un mensaje de prueba enviado desde el panel de administración.\n\n"
+        "Si lo estás leyendo, las alertas de queja van a llegar bien a este canal.\n"
+        "No hay que hacer nada.",
+    )
+
+    if entregado:
+        destino = business.alert_email or f"Telegram {business.telegram_chat_id}"
+        return _ficha(request, db, business, ok=f"Aviso de prueba enviado a {destino}.")
+
+    return _ficha(
+        request, db, business,
+        ok="No se pudo entregar por ningún canal. Revisa el correo del cliente y la "
+           "configuración SMTP del servidor.",
+    )
+
+
+@router.post("/{token}/eliminar", dependencies=[Depends(_exigir_sesion)])
+def eliminar(
+    token: str,
+    request: Request,
+    confirmacion: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Borra un cliente y todo su historial.
+
+    Pide escribir el nombre exacto porque no hay vuelta atrás: se van con él las
+    visitas y las quejas, que son irreemplazables. Un cliente que se va merece
+    que le exporten sus datos antes (scripts/export_data.py), no que se borren de
+    un clic mal dado.
+    """
+    business = _cliente_o_404(db, token)
+
+    if confirmacion.strip() != business.name:
+        return _ficha(
+            request, db, business,
+            ok="Para eliminar, escribe el nombre del negocio EXACTAMENTE como aparece arriba.",
+        )
+
+    # Orden hijo → padre: las claves foráneas no admiten otro.
+    db.execute(delete(Tap).where(Tap.business_id == business.id))
+    db.execute(delete(Feedback).where(Feedback.business_id == business.id))
+    db.execute(delete(Placement).where(Placement.business_id == business.id))
+    db.delete(business)
+    db.commit()
+
+    return RedirectResponse("/admin/", status_code=302)

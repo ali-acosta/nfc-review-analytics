@@ -77,6 +77,19 @@
   <p class="apunte">
     Las placas existentes nunca cambian de código: ya están grabadas en un chip pegado a una mesa.
   </p>
+
+  <div class="acciones">
+    <a class="btn btn-suave" href="/admin/{{ business.dashboard_token }}/placas.html" target="_blank">
+      Ver hoja para imprimir
+    </a>
+    <a class="btn btn-suave" href="/admin/{{ business.dashboard_token }}/placas.html?descargar=1">
+      Descargar hoja
+    </a>
+  </div>
+  <p class="apunte">
+    La hoja lleva una tarjeta por placa, con su QR y su URL en texto para grabar el chip. El
+    archivo funciona solo: se le puede mandar por correo a quien fabrique las placas.
+  </p>
 </section>
 
 <section>
@@ -101,10 +114,67 @@
     <form method="post" action="/admin/{{ business.dashboard_token }}/rotar">
       <button type="submit" class="btn btn-suave">Rotar enlace del informe</button>
     </form>
+    <a class="btn btn-suave" href="/informe/{{ business.dashboard_token }}" target="_blank">
+      Ver su informe
+    </a>
   </div>
   <p class="apunte">
     Rotar el enlace invalida el anterior: sirve si el correo del informe se reenvió a alguien que no
     debía verlo. Hay que mandarle el nuevo al dueño.
   </p>
+</section>
+
+<section>
+  <h2>Alertas</h2>
+  <p class="apunte">
+    {% if resumen.tiene_alertas %}
+    Las quejas privadas se avisan a
+    <strong>{{ business.alert_email or 'Telegram ' ~ business.telegram_chat_id }}</strong>.
+    Conviene probarlo el mismo día del alta: si el correo está mal escrito, te enteras el día que
+    un cliente real deja una queja y el dueño nunca la ve.
+    {% else %}
+    <span class="etiqueta alerta">sin canal configurado</span>
+    El dueño no se enterará de ninguna queja. Es la razón principal por la que un cliente sigue
+    pagando: agrégale un correo arriba.
+    {% endif %}
+  </p>
+  {% if resumen.tiene_alertas %}
+  <form method="post" action="/admin/{{ business.dashboard_token }}/probar-alerta">
+    <button type="submit" class="btn btn-suave">Enviar aviso de prueba</button>
+  </form>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Actividad</h2>
+  <p class="apunte">
+    {% if resumen.sin_estrenar %}
+    <span class="etiqueta alerta">sin estrenar</span>
+    Todavía nadie ha tocado una placa de este cliente. Si ya están instaladas, algo pasa: revisa
+    que la URL grabada sea la correcta.
+    {% elif resumen.dias_sin_actividad == 0 %}
+    <span class="etiqueta ok">activo hoy</span>
+    {% elif resumen.dias_sin_actividad <= 3 %}
+    Última visita hace {{ resumen.dias_sin_actividad }} día{{ 's' if resumen.dias_sin_actividad != 1 else '' }}.
+    {% else %}
+    <span class="etiqueta alerta">{{ resumen.dias_sin_actividad }} días sin uso</span>
+    Suele significar una placa despegada, tapada o guardada. El cliente sigue pagando y no está
+    pasando nada: conviene llamarlo antes de que lo note él.
+    {% endif %}
+  </p>
+</section>
+
+<section class="peligro">
+  <h2>Eliminar este cliente</h2>
+  <p class="apunte">
+    Se borran el negocio, sus {{ placements|length }} placa{{ 's' if placements|length != 1 else '' }}
+    y todo su historial de visitas y quejas. <strong>No hay vuelta atrás.</strong> Si el cliente
+    se va, expórtale antes sus datos con
+    <code>python -m scripts.export_data --token {{ business.dashboard_token }}</code>.
+  </p>
+  <form method="post" action="/admin/{{ business.dashboard_token }}/eliminar" class="formulario-linea">
+    <input type="text" name="confirmacion" placeholder="Escribe: {{ business.name }}" required />
+    <button type="submit" class="btn btn-peligro">Eliminar definitivamente</button>
+  </form>
 </section>
 {% endblock %}

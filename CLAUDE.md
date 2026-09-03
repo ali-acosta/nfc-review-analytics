@@ -20,7 +20,7 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, an operator admin panel, 221 tests. Demo panel:
+report with automatic delivery, client onboarding, migrations, an operator admin panel, 237 tests. Demo panel:
 `demo@cafe.cl` / `demo1234`. Nothing has been deployed or published — the user has not bought the
 domain yet, and printing a plaque with a temporary URL is the one irreversible mistake to avoid.
 
@@ -113,7 +113,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 221 tests
+pytest -q                       # 237 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
@@ -207,6 +207,8 @@ validation would have returned 422 before the 404 check and leaked its existence
 also re-checks that the panel is still enabled, so removing the credential kills live sessions at
 once instead of letting them run until the cookie expires. A client's own panel session cannot reach
 it; `tests/test_admin.py` covers that specifically.
+
+Beyond mirroring the CLI it surfaces what the CLI could not: **days since the last real tap**, per client and on the list, because a plaque that got unstuck or covered never announces itself and the client keeps paying while nothing happens; a **test-alert button**, because a mistyped owner email otherwise surfaces the day a real complaint is silently lost; the **manufacturing sheet** inline (that sheet and the report are the two self-contained documents that get `DOCUMENT_CSP`); and **deletion**, gated behind typing the exact business name, since it takes irreplaceable tap history with it.
 
 It is Jinja2 over FastAPI rather than Dash — these are forms, not charts — so it needs no WSGI mount
 and keeps the strict CSP. All of its CSS lives in `static/admin.css` for that reason.

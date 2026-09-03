@@ -342,3 +342,220 @@ class TestLaClaveNoViajaEnClaro:
         assert admin_auth.verificar("correcta") is True
         assert admin_auth.verificar("incorrecta") is False
         assert admin_auth.verificar("") is False
+
+
+class TestHojaDePlacasDesdeElPanel:
+    """Es el paso siguiente natural al alta: se crean las placas y de inmediato
+    hay que mandarlas a fabricar. Tenerlo solo por CLI obligaba al operador a
+    volver a la terminal justo después de haber usado el panel."""
+
+    def test_se_puede_ver_en_el_navegador(self, operador, negocio):
+        respuesta = operador.get(f"/admin/{negocio.token}/placas.html")
+
+        assert respuesta.status_code == 200
+        assert respuesta.text.count("data:image/png;base64,") == 2
+
+    def test_se_puede_descargar_con_nombre_legible(self, operador, negocio):
+        respuesta = operador.get(f"/admin/{negocio.token}/placas.html?descargar=1")
+
+        disposicion = respuesta.headers["content-disposition"]
+        assert disposicion.startswith("attachment;")
+        # Las cabeceras HTTP son ASCII: un nombre con tilde llegaría como basura.
+        disposicion.encode("ascii")
+
+    def test_la_politica_permite_que_la_hoja_se_vea(self, operador, negocio):
+        """Mismo caso que el informe: es un documento autocontenido, con sus
+        estilos dentro del HTML. Con la CSP estricta se vería como texto plano."""
+        respuesta = operador.get(f"/admin/{negocio.token}/placas.html")
+        csp = respuesta.headers["content-security-policy"]
+
+        assert "'unsafe-inline'" in csp.split("style-src")[1].split(";")[0]
+        assert "script-src 'none'" in csp
+
+    def test_un_cliente_sin_placas_no_genera_hoja(self, operador):
+        from app.database import SessionLocal
+        from app.models import Business
+
+        with SessionLocal() as db:
+            vacio = Business(name="Sin Placas", google_review_url="https://g.page/r/CX/review")
+            db.add(vacio)
+            db.commit()
+            token = vacio.dashboard_token
+
+        assert operador.get(f"/admin/{token}/placas.html").status_code == 404
+
+    def test_hay_que_tener_sesion(self, admin, negocio):
+        """La hoja lleva las URLs de las placas de un cliente: no es pública."""
+        with TestClient(app, follow_redirects=False) as c:
+            assert c.get(f"/admin/{negocio.token}/placas.html").status_code == 302
+
+    def test_el_nombre_del_archivo_aguanta_cualquier_negocio(self):
+        from app.routers.admin import _nombre_archivo
+
+        assert _nombre_archivo("Café Demo") == "placas-cafe-demo.html"
+        assert _nombre_archivo("Panadería La Ñoña") == "placas-panaderia-la-nona.html"
+        assert _nombre_archivo("???") == "placas-cliente.html"
+
+
+class TestAvisoDePrueba:
+    """Que el correo del cliente esté mal escrito se descubriría el día que
+    alguien deja una queja real y el dueño nunca la ve: justo la alerta que
+    sostiene la suscripción, perdida en silencio."""
+
+    def test_sin_canal_configurado_lo_dice(self, operador, negocio):
+        html = operador.post(f"/admin/{negocio.token}/probar-alerta").text
+
+        assert "no tiene ningún canal configurado" in html
+
+    def test_manda_el_aviso_por_el_canal_del_cliente(self, operador, negocio, monkeypatch):
+        from app.database import SessionLocal
+        from app.models import Business
+        from app.routers import admin as router_admin
+
+        with SessionLocal() as db:
+            b = db.get(Business, negocio.id)
+            b.alert_email = "dueno@local.cl"
+            db.commit()
+
+        enviados = []
+
+        async def falso_notify(business, asunto, cuerpo):
+            enviados.append((business.name, asunto, cuerpo))
+            return True
+
+        monkeypatch.setattr(router_admin, "notify", falso_notify)
+
+        html = operador.post(f"/admin/{negocio.token}/probar-alerta").text
+
+        assert len(enviados) == 1
+        assert "Prueba de alertas" in enviados[0][1]
+        assert "dueno@local.cl" in html
+
+    def test_informa_cuando_no_se_pudo_entregar(self, operador, negocio, monkeypatch):
+        from app.database import SessionLocal
+        from app.models import Business
+        from app.routers import admin as router_admin
+
+        with SessionLocal() as db:
+            b = db.get(Business, negocio.id)
+            b.alert_email = "dueno@local.cl"
+            db.commit()
+
+        async def falso_notify(business, asunto, cuerpo):
+            return False
+
+        monkeypatch.setattr(router_admin, "notify", falso_notify)
+
+        html = operador.post(f"/admin/{negocio.token}/probar-alerta").text
+
+        assert "No se pudo entregar" in html
+
+
+class TestEliminarCliente:
+    """Se lleva por delante un historial irreemplazable. Pedir el nombre exacto
+    es lo que separa una baja deliberada de un clic mal dado."""
+
+    def _existe(self, negocio_id) -> bool:
+        from app.database import SessionLocal
+        from app.models import Business
+
+        with SessionLocal() as db:
+            return db.get(Business, negocio_id) is not None
+
+    def test_sin_confirmacion_no_borra(self, operador, negocio):
+        operador.post(f"/admin/{negocio.token}/eliminar", data={"confirmacion": ""})
+
+        assert self._existe(negocio.id)
+
+    def test_con_el_nombre_mal_escrito_no_borra(self, operador, negocio):
+        html = operador.post(
+            f"/admin/{negocio.token}/eliminar", data={"confirmacion": "café de prueba"}
+        ).text
+
+        assert self._existe(negocio.id)
+        assert "EXACTAMENTE" in html
+
+    def test_con_el_nombre_exacto_borra_todo(self, operador, negocio):
+        from app.database import SessionLocal
+        from app.models import Feedback, Placement, Tap
+        from sqlalchemy import select
+        from tests.conftest import add_visit
+
+        add_visit(negocio.id, negocio.mesa_id, converts=True)
+        with SessionLocal() as db:
+            db.add(Feedback(business_id=negocio.id, placement_id=negocio.mesa_id, message="algo"))
+            db.commit()
+
+        respuesta = operador.post(
+            f"/admin/{negocio.token}/eliminar",
+            data={"confirmacion": negocio.nombre},
+            follow_redirects=False,
+        )
+
+        assert respuesta.status_code == 302
+        assert not self._existe(negocio.id)
+        with SessionLocal() as db:
+            assert db.scalars(select(Tap).where(Tap.business_id == negocio.id)).all() == []
+            assert db.scalars(select(Feedback).where(Feedback.business_id == negocio.id)).all() == []
+            assert db.scalars(select(Placement).where(Placement.business_id == negocio.id)).all() == []
+
+    def test_no_borra_los_datos_de_otro_cliente(self, operador, negocio):
+        """El filtro por negocio no es decorativo: borrar uno no puede llevarse
+        las visitas de otro."""
+        from app.database import SessionLocal
+        from app.models import Business, Placement, Tap
+        from sqlalchemy import select
+        from tests.conftest import add_visit
+
+        with SessionLocal() as db:
+            otro = Business(name="Intacto", google_review_url="https://g.page/r/CZ/review")
+            db.add(otro)
+            db.flush()
+            placa = Placement(business_id=otro.id, label="Barra")
+            db.add(placa)
+            db.commit()
+            otro_id, placa_id = otro.id, placa.id
+
+        add_visit(otro_id, placa_id, converts=True)
+
+        operador.post(
+            f"/admin/{negocio.token}/eliminar",
+            data={"confirmacion": negocio.nombre},
+            follow_redirects=False,
+        )
+
+        with SessionLocal() as db:
+            assert db.get(Business, otro_id) is not None
+            assert db.scalars(select(Tap).where(Tap.business_id == otro_id)).all() != []
+
+
+class TestSaludDelCliente:
+    """Una placa despegada o tapada no avisa: el cliente sigue pagando y no pasa
+    nada. El operador tiene que verlo antes que el cliente."""
+
+    def test_marca_a_un_cliente_sin_estrenar(self, operador, negocio):
+        html = operador.get("/admin/").text
+
+        assert "sin estrenar" in html
+
+    def test_marca_los_dias_sin_uso(self, operador, negocio):
+        from datetime import datetime, timedelta, timezone
+
+        from tests.conftest import add_visit
+
+        add_visit(negocio.id, negocio.mesa_id,
+                  when=datetime.now(timezone.utc) - timedelta(days=12))
+
+        html = operador.get("/admin/").text
+
+        assert "12 días sin uso" in html
+
+    def test_un_cliente_activo_hoy_no_alarma(self, operador, negocio):
+        from tests.conftest import add_visit
+
+        add_visit(negocio.id, negocio.mesa_id)
+
+        html = operador.get(f"/admin/{negocio.token}").text
+
+        assert "activo hoy" in html
+        assert "días sin uso" not in html

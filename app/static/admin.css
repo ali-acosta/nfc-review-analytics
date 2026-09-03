@@ -270,3 +270,13 @@ code.clave {
   .encabezado { flex-direction: column; }
   .tabla { display: block; overflow-x: auto; }
 }
+
+/* ---- zona peligrosa ---- */
+.peligro {
+  border: 1px solid var(--alerta);
+  border-radius: 8px;
+  padding: 16px 20px;
+  background: var(--alerta-suave);
+}
+.peligro h2 { border-bottom-color: rgba(154, 59, 44, 0.3); color: var(--alerta); }
+.btn-peligro { background: var(--alerta); color: #fff; }

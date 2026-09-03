@@ -69,7 +69,7 @@ PUBLIC_CSP = (
 # importa: el informe no tiene ni una línea de JavaScript, así que un script
 # inyectado no se ejecuta. Los textos de las quejas, que es el único contenido
 # que escribe un desconocido, van escapados por Jinja2.
-REPORT_CSP = (
+DOCUMENT_CSP = (
     b"default-src 'self'; "
     b"script-src 'none'; "
     b"style-src 'self' 'unsafe-inline'; "
@@ -78,7 +78,12 @@ REPORT_CSP = (
     b"base-uri 'none'; "
     b"frame-ancestors 'none'"
 )
-REPORT_PREFIX = "/informe"
+# Documentos autocontenidos: el informe mensual y la hoja de placas. Los dos
+# llevan su CSS dentro del HTML porque tienen que verse igual servidos por la
+# app, guardados a PDF y enviados por correo a alguien que no tiene acceso al
+# servidor (el dueño, o quien fabrica las placas).
+DOCUMENT_PREFIXES = ("/informe",)
+DOCUMENT_SUFFIXES = ("/placas.html",)
 
 
 class DashboardAuthMiddleware:
@@ -123,9 +128,8 @@ class SecurityHeadersMiddleware:
                 extra = dict(BASE_SECURITY_HEADERS)
                 if es_publica:
                     ruta = scope["path"]
-                    extra[b"content-security-policy"] = (
-                        REPORT_CSP if ruta.startswith(REPORT_PREFIX) else PUBLIC_CSP
-                    )
+                    es_documento = ruta.startswith(DOCUMENT_PREFIXES) or ruta.endswith(DOCUMENT_SUFFIXES)
+                    extra[b"content-security-policy"] = DOCUMENT_CSP if es_documento else PUBLIC_CSP
                 if settings.base_url.startswith("https://"):
                     extra[HSTS[0]] = HSTS[1]
                 if scope["path"].startswith(NOINDEX_PREFIXES):

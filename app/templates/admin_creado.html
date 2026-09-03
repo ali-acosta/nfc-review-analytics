@@ -58,5 +58,17 @@
   <p><code>{{ base }}/informe/{{ business.dashboard_token }}</code></p>
 </section>
 
-<p><a class="btn btn-primario" href="/admin/{{ business.dashboard_token }}">Ir a la ficha del cliente</a></p>
+<div class="acciones">
+  <a class="btn btn-primario" href="/admin/{{ business.dashboard_token }}">Ir a la ficha del cliente</a>
+  <a class="btn btn-suave" href="/admin/{{ business.dashboard_token }}/placas.html" target="_blank">
+    Ver hoja para imprimir
+  </a>
+  <a class="btn btn-suave" href="/admin/{{ business.dashboard_token }}/placas.html?descargar=1">
+    Descargar hoja
+  </a>
+</div>
+<p class="apunte">
+  La hoja es lo que se le manda a quien fabrica las placas: una tarjeta por soporte, con su QR y
+  su URL en texto para grabar el chip.
+</p>
 {% endblock %}
