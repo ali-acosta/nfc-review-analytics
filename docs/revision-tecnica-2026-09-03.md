@@ -988,7 +988,7 @@ local y gratis con `pysentimiento` (entrenado en español) o VADER, sobre `Feedb
 cuando exista 9.3, sobre las reseñas de Google. Una columna `sentiment` y un color en la
 bandeja. No antes de tener clientes que lo pidan.
 
-### 9.11 · Panel de administración web
+### 9.11 · Panel de administración web · ✅ HECHO 2026-09-03
 
 Cuando 9.1 quede corto: una ruta `/admin` con su propia contraseña de operador (no la de los
 clientes), para listar negocios, editar sus datos, agregar placas, ver el estado de las alertas
@@ -1023,3 +1023,4 @@ mediano; se justifica con más de diez clientes o con un segundo operador.
 | 2026-09-03 | Fase B completada (I2, I3, I4, I8, M2, M3, M4, M6, M7, M8, M9, M10, M12, M14, I7.1) y fase C parcial (I1, M1). 176 tests. |
 | 2026-09-03 | Fase E: 9.1 (`--editar`) y 9.2 (hoja de placas). 189 tests. Panel e informe verificados coincidiendo con datos reales de la ronda de pruebas del usuario. |
 | 2026-09-03 | **La prueba manual encontró un bug que la suite no podía ver**: la CSP pública bloqueaba los estilos del informe y el dueño lo habría recibido como texto plano. Corregido con una CSP propia para `/informe` y cuatro tests de regresión. 193 tests. |
+| 2026-09-03 | Panel de administración del operador en `/admin` (9.11), adelantado a pedido del usuario. 28 tests propios, la mitad sobre quién no puede entrar. 221 tests. |

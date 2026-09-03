@@ -1,0 +1,62 @@
+{% extends "admin_base.html" %}
+{% block titulo %}{{ business.name }} creado — Administración{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>{{ business.name }}</h1>
+    <p class="apunte">Cliente creado con {{ placements|length }} placa{{ 's' if placements|length != 1 else '' }}.</p>
+  </div>
+  <a class="btn btn-suave" href="/admin/">Volver al listado</a>
+</div>
+
+{% for aviso in avisos %}
+<p class="error" role="alert">{{ aviso }}</p>
+{% endfor %}
+
+{% if password %}
+<section class="destacado">
+  <h2>Credenciales del dueño</h2>
+  <p class="apunte">Entrégaselas ahora. La contraseña no se puede volver a mostrar.</p>
+  <dl class="datos">
+    <dt>Entrar en</dt><dd><code>{{ base }}/panel/login</code></dd>
+    <dt>Correo</dt><dd><code>{{ business.login_email }}</code></dd>
+    <dt>Contraseña</dt><dd><code class="clave">{{ password }}</code></dd>
+  </dl>
+  <p class="apunte">
+    Se guarda cifrada, así que nadie puede recuperarla. Si se pierde, se genera otra desde la
+    ficha del cliente.
+  </p>
+</section>
+{% else %}
+<p class="error">
+  Sin correo no se crearon credenciales: el dueño no puede entrar a su panel ni recibir las
+  alertas de queja. Agrégale un correo desde su ficha.
+</p>
+{% endif %}
+
+<section>
+  <h2>Placas</h2>
+  <p class="apunte">Cada código va grabado en su propio chip. No se pueden cambiar después.</p>
+  <table class="tabla">
+    <thead><tr><th>Etiqueta</th><th>URL a grabar</th><th>QR</th></tr></thead>
+    <tbody>
+      {% for p in placements %}
+      <tr>
+        <td>{{ p.label }}</td>
+        <td><code>{{ base }}/r/{{ p.token }}</code></td>
+        <td><a href="/r/{{ p.token }}/qr.png" target="_blank">ver QR</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Informe mensual</h2>
+  <p class="apunte">Enlace directo, sin contraseña. Es el que se le manda por correo cada mes.</p>
+  <p><code>{{ base }}/informe/{{ business.dashboard_token }}</code></p>
+</section>
+
+<p><a class="btn btn-primario" href="/admin/{{ business.dashboard_token }}">Ir a la ficha del cliente</a></p>
+{% endblock %}

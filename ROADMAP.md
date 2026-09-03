@@ -81,7 +81,7 @@ perder su historial. Ahora hay Alembic (`alembic upgrade head`, aplicado solo en
 desde `render.yaml`) y un test que falla si los modelos y las migraciones se desincronizan.
 Ya se estrenó agregando la columna del correo de alertas, con los 1915 taps de demo intactos.
 
-### Calidad — Tests · ✅ 193 tests
+### Calidad — Tests · ✅ 221 tests
 `pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push, sobre SQLite y Postgres
 (`.github/workflows/tests.yml`). Protegen sobre todo la métrica de conversión —que ya se rompió
 una vez en silencio— y la regla de no reintroducir el filtrado de reseñas.
@@ -214,9 +214,11 @@ y para entonces ya habría ingresos que lo cubren. Agregar un canal es tocar sol
 
 ## Lo que se puede hacer sin depender del usuario
 
-- **Panel web de administración**: hacer desde el navegador lo que hoy hace la CLI. Ya no es
-  urgente: `--editar` cubre la corrección de datos, que era lo que dolía. Se justifica pasados los
-  diez clientes o con un segundo operador.
+- ~~Panel web de administración~~ ✅ **hecho**: `/admin`, con alta, edición, placas, contraseñas y
+  rotación del enlace del informe. Se adelantó sobre lo planificado a pedido del usuario, con un
+  argumento correcto: el operador es una persona y no puede depender de una terminal para atender a
+  sus clientes. Se habilita con `python -m scripts.admin_password`; mientras `ADMIN_PASSWORD_HASH`
+  esté vacío, responde 404.
 - ~~Hoja de impresión de QR~~ ✅ hecha: `python -m scripts.qr_sheet --token TOKEN`.
 - **Módulo 3 (IA de sentimiento)**: local y gratis con `pysentimiento`/VADER. Sigue siendo la
   prioridad más baja — con 20 reseñas al mes nadie necesita NLP.

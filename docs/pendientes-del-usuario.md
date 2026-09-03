@@ -31,32 +31,32 @@ uvicorn app.main:app --reload
 
 ### A.1 · El flujo del cliente (lo más importante)
 
-- [ ] Abrir la landing de "Mesa 5": http://localhost:8000/r/ZTYFEMtc (con F12 en vista de móvil)
-- [ ] Confirmar que **no hay selector de estrellas** antes del botón de Google
-- [ ] Tocar "Dejar reseña en Google" y confirmar que redirige
-- [ ] Recargar y tocar varias veces seguidas, confirmar que no da errores
-- [ ] Abrir el canal privado y enviar un comentario **con** calificación y contacto
-- [ ] Enviar otro **sin** calificación y **sin** contacto
-- [ ] Desde la página de gracias, tocar el botón de Google y anotar qué pasa
-- [ ] Probar un código inventado: `http://localhost:8000/r/no-existe-esto` → debe dar 404 limpio
+- [x] Abrir la landing de "Mesa 5": http://localhost:8000/r/ZTYFEMtc (con F12 en vista de móvil)
+- [x] Confirmar que **no hay selector de estrellas** antes del botón de Google
+- [x] Tocar "Dejar reseña en Google" y confirmar que redirige
+- [x] Recargar y tocar varias veces seguidas, confirmar que no da errores
+- [x] Abrir el canal privado y enviar un comentario **con** calificación y contacto
+- [x] Enviar otro **sin** calificación y **sin** contacto
+- [x] Desde la página de gracias, tocar el botón de Google y anotar qué pasa
+- [x] Probar un código inventado: `http://localhost:8000/r/no-existe-esto` → debe dar 404 limpio
 
 ### A.2 · El panel del dueño
 
-- [ ] Entrar en `/panel/login` con `demo@cafe.cl` / `demo1234`
-- [ ] Antes, probar contraseña incorrecta: no debe revelar si el correo existe
-- [ ] Revisar los cuatro números de arriba y los dos gráficos
-- [ ] Marcar dos o tres quejas como atendidas, y reabrir una
-- [ ] Exportar el buzón a CSV y abrirlo en Excel (revisar que los acentos estén bien)
-- [ ] Probar "Cambiar contraseña", incluida la actual mal escrita
-- [ ] Cerrar sesión y confirmar que `/dashboard/` ya no abre
+- [x] Entrar en `/panel/login` con `demo@cafe.cl` / `demo1234`
+- [x] Antes, probar contraseña incorrecta: no debe revelar si el correo existe
+- [x] Revisar los cuatro números de arriba y los dos gráficos
+- [x] Marcar dos o tres quejas como atendidas, y reabrir una
+- [x] Exportar el buzón a CSV y abrirlo en Excel (revisar que los acentos estén bien)
+- [x] Probar "Cambiar contraseña", incluida la actual mal escrita
+- [x] Cerrar sesión y confirmar que `/dashboard/` ya no abre
 
 ### A.3 · El informe mensual
 
-- [ ] Abrir `http://localhost:8000/informe/4VB6_OoK`
-- [ ] Probar un mes concreto: `?mes=2026-08`
-- [ ] Probar un mes vacío: `?mes=2026-01` → debe cargar con ceros, no romperse
-- [ ] Imprimir a PDF desde el navegador y revisar cómo queda
-- [ ] Abrir `/informe/4VB6_OoK/pdf` → debe dar un mensaje claro, nunca un error de servidor
+- [x] Abrir `http://localhost:8000/informe/4VB6_OoK`
+- [x] Probar un mes concreto: `?mes=2026-08`
+- [x] Probar un mes vacío: `?mes=2026-01` → debe cargar con ceros, no romperse
+- [x] Imprimir a PDF desde el navegador y revisar cómo queda
+- [x] Abrir `/informe/4VB6_OoK/pdf` → debe dar un mensaje claro, nunca un error de servidor
 
 ### A.4 · Dar de alta un cliente de prueba
 

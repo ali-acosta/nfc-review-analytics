@@ -38,7 +38,9 @@ HSTS = (b"strict-transport-security", b"max-age=31536000; includeSubDomains")
 # placa, hundiendo su conversión. La URL de una placa es para quien está sentado
 # en esa mesa, no para el mundo.
 NOINDEX = (b"x-robots-tag", b"noindex, nofollow")
-PUBLIC_LANDING_PREFIX = "/r/"
+# /r/ son las landings; /admin es la herramienta del operador. Ninguna de las
+# dos debe aparecer en un buscador.
+NOINDEX_PREFIXES = ("/r/", "/admin")
 
 # CSP estricta solo para las páginas públicas, que es donde entra gente
 # desconocida. El panel queda fuera: Dash genera sus propios scripts en línea y
@@ -126,7 +128,7 @@ class SecurityHeadersMiddleware:
                     )
                 if settings.base_url.startswith("https://"):
                     extra[HSTS[0]] = HSTS[1]
-                if scope["path"].startswith(PUBLIC_LANDING_PREFIX):
+                if scope["path"].startswith(NOINDEX_PREFIXES):
                     extra[NOINDEX[0]] = NOINDEX[1]
                 # No se pisa lo que la respuesta ya haya definido a propósito.
                 headers.extend((k, v) for k, v in extra.items() if k not in presentes)

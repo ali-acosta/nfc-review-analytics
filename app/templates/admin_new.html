@@ -1,0 +1,62 @@
+{% extends "admin_base.html" %}
+{% block titulo %}Nuevo cliente — Administración{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Dar de alta un cliente</h1>
+    <p class="apunte">Se crean el negocio, sus placas y las credenciales del dueño.</p>
+  </div>
+  <a class="btn btn-suave" href="/admin/">Volver</a>
+</div>
+
+{% if error %}
+<p class="error" role="alert">{{ error }}</p>
+{% endif %}
+
+<form method="post" action="/admin/nuevo" class="formulario">
+  <label>
+    Nombre del negocio
+    <input type="text" name="nombre" value="{{ datos.nombre or '' }}" required autofocus
+           placeholder="Café Central" />
+  </label>
+
+  <label>
+    Link de reseñas de Google
+    <input type="text" name="google_url" value="{{ datos.google_url or '' }}" required
+           placeholder="https://g.page/r/.../review" />
+    <span class="ayuda">
+      Se obtiene en el perfil de Google Business del negocio, en "Solicitar reseñas". Se puede
+      corregir después si todavía no lo tienes.
+    </span>
+  </label>
+
+  <label>
+    Placas, separadas por coma
+    <input type="text" name="placas" value="{{ datos.placas or '' }}" required
+           placeholder="Mesa 1, Mesa 2, Mesón" />
+    <span class="ayuda">
+      Cada placa lleva su propio código y su propio QR: es lo que después permite decirle al
+      cliente cuál de sus soportes convierte mejor. Ponles nombres que el dueño reconozca.
+      <strong>El código de una placa no se puede cambiar una vez grabado en el chip.</strong>
+    </span>
+  </label>
+
+  <label>
+    Correo del dueño
+    <input type="email" name="email" value="{{ datos.email or '' }}"
+           placeholder="dueno@negocio.cl" />
+    <span class="ayuda">
+      Sirve para dos cosas: recibir las alertas de queja y entrar al panel. Sin correo no se crean
+      credenciales y el dueño no podrá ver sus números.
+    </span>
+  </label>
+
+  <label>
+    Chat de Telegram (opcional)
+    <input type="text" name="telegram" value="{{ datos.telegram or '' }}" placeholder="123456789" />
+  </label>
+
+  <button type="submit" class="btn btn-primario">Crear cliente</button>
+</form>
+{% endblock %}

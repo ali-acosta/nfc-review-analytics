@@ -1,0 +1,272 @@
+/* Panel de administración del operador.
+   Hoja aparte de style.css: la landing es una tarjeta centrada para teléfono y
+   esto es una herramienta de escritorio con tablas anchas. Todo el CSS vive aquí
+   y no dentro del HTML para que la política de seguridad estricta siga
+   aplicando en estas páginas. */
+
+:root {
+  color-scheme: light;
+  --fondo: #f4f6f7;
+  --superficie: #ffffff;
+  --texto: #1d2624;
+  --apagado: #6b7a76;
+  --borde: #dde3e1;
+  --acento: #16607d;
+  --acento-suave: #eaf2f5;
+  --alerta: #9a3b2c;
+  --alerta-suave: #fdf0ed;
+  --exito: #2f6b45;
+  --exito-suave: #e8f2ec;
+}
+
+* { box-sizing: border-box; }
+
+body.admin {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+body.centrado {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+/* ---- barra superior ---- */
+.barra {
+  background: var(--superficie);
+  border-bottom: 1px solid var(--borde);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.marca {
+  font-weight: 600;
+  color: var(--texto);
+  text-decoration: none;
+  font-size: 1rem;
+}
+.salir { margin: 0; }
+.btn-texto {
+  background: none;
+  border: none;
+  color: var(--apagado);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.contenido {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 28px;
+}
+
+/* ---- encabezados ---- */
+.encabezado {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+h1 { font-size: 1.5rem; margin: 0 0 4px; }
+h2 {
+  font-size: 1.05rem;
+  margin: 0 0 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--borde);
+}
+section { margin-bottom: 32px; }
+.apunte { color: var(--apagado); font-size: 0.9rem; margin: 0 0 12px; }
+.apunte.pie { margin-top: 16px; }
+
+/* ---- tablas ---- */
+.tabla {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.tabla th, .tabla td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--borde);
+  vertical-align: top;
+}
+.tabla th {
+  background: #fafbfb;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--apagado);
+  font-weight: 600;
+}
+.tabla tr:last-child td { border-bottom: none; }
+.tabla .num { text-align: right; white-space: nowrap; }
+.sub { color: var(--apagado); font-size: 0.82rem; margin-top: 2px; }
+.enlace-fuerte { color: var(--acento); font-weight: 600; text-decoration: none; }
+.enlace-fuerte:hover { text-decoration: underline; }
+.pendiente { color: var(--alerta); font-weight: 600; }
+
+/* ---- etiquetas de estado ---- */
+.etiqueta {
+  display: inline-block;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.etiqueta.alerta { background: var(--alerta-suave); color: var(--alerta); }
+.etiqueta.ok { background: var(--exito-suave); color: var(--exito); }
+
+/* ---- formularios ---- */
+.formulario, .tarjeta-login form { max-width: 560px; }
+.formulario label, .tarjeta-login label {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  color: var(--apagado);
+}
+.formulario input, .tarjeta-login input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font: inherit;
+  color: var(--texto);
+  background: var(--superficie);
+}
+.formulario input:focus, .tarjeta-login input:focus {
+  outline: 2px solid var(--acento);
+  outline-offset: -1px;
+}
+.ayuda {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: var(--apagado);
+  line-height: 1.45;
+}
+.formulario-linea {
+  display: flex;
+  gap: 8px;
+  max-width: 560px;
+  margin-bottom: 8px;
+}
+.formulario-linea input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  font: inherit;
+}
+
+/* ---- botones ---- */
+.btn {
+  display: inline-block;
+  padding: 9px 16px;
+  border: none;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-primario { background: var(--acento); color: #fff; }
+.btn-suave {
+  background: var(--acento-suave);
+  color: var(--acento);
+  border: 1px solid var(--borde);
+}
+.acciones { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.acciones form { margin: 0; }
+
+/* ---- avisos ---- */
+.error, .ok {
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  margin: 0 0 16px;
+}
+.error { background: var(--alerta-suave); color: var(--alerta); }
+.ok { background: var(--exito-suave); color: var(--exito); }
+
+.destacado {
+  background: var(--superficie);
+  border: 1px solid var(--acento);
+  border-left: 3px solid var(--acento);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 28px;
+}
+
+/* ---- listas de datos ---- */
+.datos { margin: 0; }
+.datos dt {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--apagado);
+  margin-top: 10px;
+}
+.datos dd { margin: 3px 0 0; }
+code {
+  font-family: "Courier New", monospace;
+  font-size: 0.86rem;
+  background: #f2f5f4;
+  padding: 2px 6px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+code.clave {
+  font-size: 1.1rem;
+  font-weight: 700;
+  background: var(--acento-suave);
+  color: var(--acento);
+  letter-spacing: 1px;
+}
+
+/* ---- login ---- */
+.tarjeta-login {
+  background: var(--superficie);
+  border-radius: 12px;
+  padding: 32px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+}
+.tarjeta-login h1 { margin-bottom: 4px; }
+.tarjeta-login .btn { width: 100%; margin-top: 4px; }
+
+.vacio {
+  background: var(--superficie);
+  border: 1px dashed var(--borde);
+  border-radius: 8px;
+  padding: 40px;
+  text-align: center;
+  color: var(--apagado);
+}
+
+@media (max-width: 700px) {
+  .contenido { padding: 18px; }
+  .encabezado { flex-direction: column; }
+  .tabla { display: block; overflow-x: auto; }
+}

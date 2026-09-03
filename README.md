@@ -170,7 +170,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-193 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
+221 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
 fechas se agrupen en hora local del negocio, y que nadie reintroduzca el filtrado de reseñas
 que viola las políticas de Google. Corren solos en cada push.
 
@@ -199,6 +199,18 @@ arranque en frío): sirve para demos pero **no** para producción — con el pri
 hay que pasar a una instancia siempre encendida (~$7/mes, que un cliente cubre tres veces).
 Y `BASE_URL` define la URL que va en los QR: si se imprimen placas con el subdominio de
 onrender.com y luego se migra, esas placas mueren. Ver [ROADMAP.md](ROADMAP.md).
+
+## Panel de administración
+
+Para gestionar los clientes desde el navegador en vez de la línea de comandos:
+
+```powershell
+python -m scripts.admin_password      # genera ADMIN_PASSWORD_HASH y lo explica
+```
+
+Pega la línea que imprime en tu `.env`, reinicia y entra en `/admin`. Mientras esa variable esté
+vacía el panel responde 404, que es el valor por defecto: un panel que ve a todos los clientes no
+puede quedar accesible por olvidar configurarlo.
 
 ## Documentación
 

@@ -20,7 +20,7 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, 193 tests. Demo panel:
+report with automatic delivery, client onboarding, migrations, an operator admin panel, 221 tests. Demo panel:
 `demo@cafe.cl` / `demo1234`. Nothing has been deployed or published — the user has not bought the
 domain yet, and printing a plaque with a temporary URL is the one irreversible mistake to avoid.
 
@@ -88,6 +88,9 @@ python -m scripts.new_client              # interactive; --listar recovers lost 
 # data: URIs, so the file works standalone once emailed)
 python -m scripts.qr_sheet --token TOKEN
 
+# Enable the operator admin panel at /admin (prints the ADMIN_PASSWORD_HASH line)
+python -m scripts.admin_password
+
 uvicorn app.main:app --reload
 ```
 
@@ -110,7 +113,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 193 tests
+pytest -q                       # 221 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
@@ -147,6 +150,7 @@ app. `tests/test_migraciones.py` fails if models and migrations drift.
 
 Routes: `/r/{token}` (landing), `/r/{token}/go` (logs + 302 to Google), `/r/{token}/feedback`
 (POST), `/r/{token}/qr.png`, `/panel/login` · `/panel/logout`, `/dashboard/` (requires session),
+`/admin/*` (operator panel — see below),
 `/informe/{business.dashboard_token}` (HTML report, `?mes=AAAA-MM`, defaults to the last
 complete month) and `/informe/{token}/pdf`.
 
@@ -188,6 +192,24 @@ it ends up outermost and `scope["session"]` exists.
 The report route deliberately stays a capability URL with no login: it is emailed to the owner
 each month, like an invoice link, and requiring a login on every monthly email would add
 friction to the exact feature that drives retention. `dashboard_token` survives only for that.
+
+**Operator admin panel** ([app/routers/admin.py](app/routers/admin.py)): does from a browser
+everything `scripts/new_client.py` does — onboard, edit, add placements, reset a password, rotate a
+report link — because the operator is a person, and needing a terminal for every client action does
+not scale and invites hand-written Python against production. The CLI stays for automation and for
+when the panel is unavailable.
+
+Its credential is **not in the database**: `ADMIN_PASSWORD_HASH` is a scrypt hash read from settings,
+so a database leak does not carry admin access, and it needs no table or migration for one user.
+**Empty means the panel does not exist** — every route 404s, including a malformed login POST, so it
+never confirms the route is there. That is why `password` is `Form("")` and not `Form(...)`: required-field
+validation would have returned 422 before the 404 check and leaked its existence. `sesion_valida`
+also re-checks that the panel is still enabled, so removing the credential kills live sessions at
+once instead of letting them run until the cookie expires. A client's own panel session cannot reach
+it; `tests/test_admin.py` covers that specifically.
+
+It is Jinja2 over FastAPI rather than Dash — these are forms, not charts — so it needs no WSGI mount
+and keeps the strict CSP. All of its CSS lives in `static/admin.css` for that reason.
 
 **Landing** ([app/templates/landing.html](app/templates/landing.html)): server-rendered Jinja2 +
 a few lines of vanilla JS, no build step, so the whole product deploys as one Python process.

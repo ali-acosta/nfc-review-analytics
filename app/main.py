@@ -15,7 +15,7 @@ from app.dashboard.dash_app import create_dash_app
 from app.database import SessionLocal, init_db
 from app.logging_config import configure_logging
 from app.middleware import DashboardAuthMiddleware, SecurityHeadersMiddleware
-from app.routers import auth, redirect, reports
+from app.routers import admin, auth, redirect, reports
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -60,6 +60,11 @@ async def lifespan(app: FastAPI):
         )
     if settings.base_url.startswith("http://") and "localhost" not in settings.base_url:
         log.warning("BASE_URL no usa https: las cookies de sesión viajarán sin cifrar.")
+    if not settings.admin_password_hash:
+        log.info(
+            "ADMIN_PASSWORD_HASH vacío: el panel de administración responde 404. "
+            "Genera la clave con 'python -m scripts.admin_password'."
+        )
 
     log.info("Arrancando · zona horaria %s · base %s", settings.timezone, _motor_de_base())
     yield
@@ -89,6 +94,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(redirect.router)
 app.include_router(reports.router)
 app.include_router(auth.router)
+app.include_router(admin.router)
 
 dash_app = create_dash_app()
 app.mount("/dashboard", WSGIMiddleware(dash_app.server))

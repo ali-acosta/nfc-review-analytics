@@ -1,0 +1,73 @@
+{% extends "admin_base.html" %}
+{% block titulo %}Clientes — Administración{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>Clientes</h1>
+    <p class="apunte">
+      {{ clientes|length }} negocio{{ 's' if clientes|length != 1 else '' }} en cartera.
+    </p>
+  </div>
+  <a class="btn btn-primario" href="/admin/nuevo">Dar de alta un cliente</a>
+</div>
+
+{% if clientes %}
+<table class="tabla">
+  <thead>
+    <tr>
+      <th>Negocio</th>
+      <th class="num">Placas</th>
+      <th class="num">Visitas</th>
+      <th class="num">Conversión</th>
+      <th class="num">Quejas sin atender</th>
+      <th>Estado</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in clientes %}
+    <tr>
+      <td>
+        <a class="enlace-fuerte" href="/admin/{{ c.business.dashboard_token }}">{{ c.business.name }}</a>
+        <div class="sub">{{ c.business.login_email or 'sin correo' }}</div>
+      </td>
+      <td class="num">{{ c.placas }}</td>
+      <td class="num">{{ c.visitas }}</td>
+      <td class="num">{{ '%.0f'|format(c.conversion) }}%</td>
+      <td class="num">
+        {% if c.quejas_pendientes %}
+        <span class="pendiente">{{ c.quejas_pendientes }}</span>
+        {% else %}
+        0
+        {% endif %}
+      </td>
+      <td>
+        {% if not c.tiene_acceso %}
+        <span class="etiqueta alerta">sin acceso al panel</span>
+        {% endif %}
+        {% if not c.tiene_alertas %}
+        <span class="etiqueta alerta">sin alertas</span>
+        {% endif %}
+        {% if c.tiene_acceso and c.tiene_alertas %}
+        <span class="etiqueta ok">al día</span>
+        {% endif %}
+      </td>
+      <td><a href="/admin/{{ c.business.dashboard_token }}">Ver ficha →</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p class="apunte pie">
+  "Sin alertas" significa que el dueño no recibirá aviso cuando le dejen una queja privada, que es
+  la razón principal por la que un cliente sigue pagando. "Sin acceso al panel" significa que no
+  tiene correo ni contraseña con los que entrar a ver sus números.
+</p>
+{% else %}
+<div class="vacio">
+  <p>Todavía no hay clientes.</p>
+  <a class="btn btn-primario" href="/admin/nuevo">Dar de alta el primero</a>
+</div>
+{% endif %}
+{% endblock %}

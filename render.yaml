@@ -41,6 +41,9 @@ services:
         generateValue: true
       - key: BASE_URL
         sync: false
+      # Hash de la clave del panel de administración. Vacío = panel deshabilitado.
+      - key: ADMIN_PASSWORD_HASH
+        sync: false
       # Vacío = monitoreo apagado. Se pega el DSN cuando exista la cuenta.
       - key: SENTRY_DSN
         sync: false

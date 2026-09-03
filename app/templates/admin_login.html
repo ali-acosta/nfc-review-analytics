@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Administración</title>
+  <link rel="stylesheet" href="/static/admin.css" />
+</head>
+<body class="admin centrado">
+  <main class="tarjeta-login">
+    <h1>Administración</h1>
+    <p class="apunte">Panel del operador. Da acceso a todos los clientes.</p>
+
+    {% if error %}
+    <p class="error" role="alert">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/admin/login">
+      <label>
+        Contraseña
+        <input type="password" name="password" autocomplete="current-password" required autofocus />
+      </label>
+      <button type="submit" class="btn btn-primario">Entrar</button>
+    </form>
+  </main>
+</body>
+</html>

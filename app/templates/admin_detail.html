@@ -1,0 +1,110 @@
+{% extends "admin_base.html" %}
+{% block titulo %}{{ business.name }} — Administración{% endblock %}
+
+{% block contenido %}
+<div class="encabezado">
+  <div>
+    <h1>{{ business.name }}</h1>
+    <p class="apunte">
+      {{ resumen.visitas }} visitas · {{ '%.0f'|format(resumen.conversion) }}% de conversión ·
+      {{ resumen.quejas_pendientes }} queja{{ 's' if resumen.quejas_pendientes != 1 else '' }} sin atender
+    </p>
+  </div>
+  <a class="btn btn-suave" href="/admin/">Volver al listado</a>
+</div>
+
+{% if ok %}<p class="ok" role="status">{{ ok }}</p>{% endif %}
+
+{% if password_nueva %}
+<section class="destacado">
+  <h2>Contraseña nueva</h2>
+  <p class="apunte">Entrégasela al dueño ahora. No se puede volver a mostrar.</p>
+  <dl class="datos">
+    <dt>Correo</dt><dd><code>{{ business.login_email }}</code></dd>
+    <dt>Contraseña</dt><dd><code class="clave">{{ password_nueva }}</code></dd>
+  </dl>
+</section>
+{% endif %}
+
+{% for aviso in avisos %}
+<p class="error" role="alert">{{ aviso }}</p>
+{% endfor %}
+
+<section>
+  <h2>Datos del cliente</h2>
+  <form method="post" action="/admin/{{ business.dashboard_token }}/editar" class="formulario">
+    <label>
+      Nombre
+      <input type="text" name="nombre" value="{{ business.name }}" required />
+    </label>
+    <label>
+      Link de reseñas de Google
+      <input type="text" name="google_url" value="{{ business.google_review_url }}" required />
+      <span class="ayuda">Cambiarlo redirige a los clientes al enlace nuevo de inmediato.</span>
+    </label>
+    <label>
+      Correo del dueño
+      <input type="email" name="email" value="{{ business.alert_email }}" />
+      <span class="ayuda">Recibe las alertas de queja. Si aún no tiene acceso al panel, también se lo habilita.</span>
+    </label>
+    <label>
+      Chat de Telegram
+      <input type="text" name="telegram" value="{{ business.telegram_chat_id }}" />
+    </label>
+    <button type="submit" class="btn btn-primario">Guardar cambios</button>
+  </form>
+</section>
+
+<section>
+  <h2>Placas ({{ placements|length }})</h2>
+  <table class="tabla">
+    <thead><tr><th>Etiqueta</th><th>URL grabada</th><th>QR</th></tr></thead>
+    <tbody>
+      {% for p in placements %}
+      <tr>
+        <td>{{ p.label }}</td>
+        <td><code>{{ base }}/r/{{ p.token }}</code></td>
+        <td><a href="/r/{{ p.token }}/qr.png" target="_blank">ver QR</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" action="/admin/{{ business.dashboard_token }}/placas" class="formulario-linea">
+    <input type="text" name="placas" placeholder="Mesa 7, Terraza" required />
+    <button type="submit" class="btn btn-suave">Agregar placas</button>
+  </form>
+  <p class="apunte">
+    Las placas existentes nunca cambian de código: ya están grabadas en un chip pegado a una mesa.
+  </p>
+</section>
+
+<section>
+  <h2>Accesos</h2>
+  <dl class="datos">
+    <dt>Panel del dueño</dt>
+    <dd>
+      {% if resumen.tiene_acceso %}
+      <code>{{ base }}/panel/login</code> como <code>{{ business.login_email }}</code>
+      {% else %}
+      <span class="etiqueta alerta">sin credenciales</span>
+      {% endif %}
+    </dd>
+    <dt>Informe mensual</dt>
+    <dd><code>{{ base }}/informe/{{ business.dashboard_token }}</code></dd>
+  </dl>
+
+  <div class="acciones">
+    <form method="post" action="/admin/{{ business.dashboard_token }}/password">
+      <button type="submit" class="btn btn-suave">Generar contraseña nueva</button>
+    </form>
+    <form method="post" action="/admin/{{ business.dashboard_token }}/rotar">
+      <button type="submit" class="btn btn-suave">Rotar enlace del informe</button>
+    </form>
+  </div>
+  <p class="apunte">
+    Rotar el enlace invalida el anterior: sirve si el correo del informe se reenvió a alguien que no
+    debía verlo. Hay que mandarle el nuevo al dueño.
+  </p>
+</section>
+{% endblock %}

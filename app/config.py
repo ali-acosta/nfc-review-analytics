@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     # hosting; INFO es lo razonable en producción.
     log_level: str = "INFO"
 
+    # Credencial del panel de administración, guardada como hash scrypt (nunca en
+    # texto plano). Vacío = el panel NO EXISTE: responde 404 y no hay forma de
+    # entrar. Ese es el valor por defecto a propósito: un panel que ve y modifica
+    # a todos los clientes no puede quedar accesible por olvidar configurarlo.
+    # Se genera con: python -m scripts.admin_password
+    admin_password_hash: str = ""
+
     # Monitoreo de errores. Vacío = apagado, que es el estado por defecto: la
     # integración viaja lista en el código y se enciende sola cuando se pega el
     # DSN, sin tocar nada más. Sin esto, un error 500 en producción solo se
