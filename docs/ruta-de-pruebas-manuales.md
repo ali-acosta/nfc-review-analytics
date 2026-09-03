@@ -133,7 +133,14 @@ Esto es lo más importante de probar primero: es literalmente el producto.
     - Qué deberías ver: el informe igual carga, con "0%" de conversión y un aviso de que no hay
       visitas, no una pantalla en blanco ni un error.
 
+15b. **[ ] El informe tiene que verse CON GRÁFICOS**: barras de colores en "Rendimiento por
+    soporte" y columnas en "Visitas por día". Si lo ves como texto plano sin formato, avísame:
+    es exactamente el bug que encontraste el 2026-09-03 y que ya está corregido, pero si
+    reaparece significa que la política de seguridad volvió a bloquear los estilos.
+
 16. **[ ] Desde ese informe, usa Imprimir del navegador → Guardar como PDF.**
+    - **Activa "Gráficos de fondo"** en Más configuraciones, o las barras y los recuadros salen
+      en blanco: el informe dibuja sus gráficos con fondos de color, no con imágenes.
     - Esta es la vía real de generar el PDF hoy (WeasyPrint no corre en Windows). Confirma que
       se ve bien impreso: la cabecera, las barras de conversión, el gráfico de columnas de
       visitas por día.

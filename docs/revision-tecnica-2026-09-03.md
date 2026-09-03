@@ -1022,3 +1022,4 @@ mediano; se justifica con más de diez clientes o con un segundo operador.
 | 2026-09-03 | Fase A completada: C1, C2, C3 y C4 corregidos y Postgres agregado a CI. 162 tests. |
 | 2026-09-03 | Fase B completada (I2, I3, I4, I8, M2, M3, M4, M6, M7, M8, M9, M10, M12, M14, I7.1) y fase C parcial (I1, M1). 176 tests. |
 | 2026-09-03 | Fase E: 9.1 (`--editar`) y 9.2 (hoja de placas). 189 tests. Panel e informe verificados coincidiendo con datos reales de la ronda de pruebas del usuario. |
+| 2026-09-03 | **La prueba manual encontró un bug que la suite no podía ver**: la CSP pública bloqueaba los estilos del informe y el dueño lo habría recibido como texto plano. Corregido con una CSP propia para `/informe` y cuatro tests de regresión. 193 tests. |

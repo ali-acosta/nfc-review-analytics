@@ -81,12 +81,17 @@ perder su historial. Ahora hay Alembic (`alembic upgrade head`, aplicado solo en
 desde `render.yaml`) y un test que falla si los modelos y las migraciones se desincronizan.
 Ya se estrenó agregando la columna del correo de alertas, con los 1915 taps de demo intactos.
 
-### Calidad — Tests · ✅ 189 tests
+### Calidad — Tests · ✅ 193 tests
 `pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push, sobre SQLite y Postgres
 (`.github/workflows/tests.yml`). Protegen sobre todo la métrica de conversión —que ya se rompió
 una vez en silencio— y la regla de no reintroducir el filtrado de reseñas.
 Encontraron un bug real: `send_alert` solo capturaba errores de red, así que cualquier otra
 excepción llegaba al cliente como un error 500 después de haber guardado su comentario.
+
+Y la **prueba manual encontró uno que los tests no podían ver**: la CSP pública bloqueaba los
+estilos del informe, que van dentro del HTML porque el documento tiene que funcionar solo. El dueño
+lo habría recibido como texto plano, sin un gráfico. La CSP la aplica el navegador, así que para la
+suite el HTML llegaba perfecto. Es el argumento de por qué probar a mano sigue haciendo falta.
 
 ### Correctitud — Zona horaria · ✅ Bug corregido
 Los eventos se guardan en UTC pero los informes y gráficos se agrupan en hora local del negocio.

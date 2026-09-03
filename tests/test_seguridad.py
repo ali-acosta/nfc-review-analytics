@@ -137,3 +137,66 @@ class TestElLoginNoDelataQuienEsCliente:
             existente = len(llamadas)
 
         assert inexistente == existente == 1, "ambos casos deben pagar el mismo costo de cómputo"
+
+
+class TestElInformeSeVeComoDebe:
+    """Regresión de un bug que ningún test podía ver.
+
+    El informe es un documento autocontenido: lleva su CSS dentro del HTML y
+    dibuja cada barra con un style= en línea, porque el mismo archivo tiene que
+    verse igual servido por la app, guardado a PDF desde el navegador y adjuntado
+    a un correo. La CSP pública lo prohibía todo, así que el navegador descartaba
+    cada estilo y el informe llegaba al dueño como texto plano, sin un gráfico.
+
+    La suite no lo detectaba porque la CSP la aplica el NAVEGADOR: para un
+    TestClient el HTML llegaba perfecto. Por eso este test no comprueba cómo se
+    ve, sino la coherencia entre lo que el documento necesita y lo que su política
+    permite."""
+
+    def _csp(self, respuesta):
+        return respuesta.headers["content-security-policy"]
+
+    def test_la_politica_permite_los_estilos_que_el_informe_usa(self, negocio, cliente):
+        respuesta = cliente.get(f"/informe/{negocio.token}")
+        csp = self._csp(respuesta)
+
+        usa_bloque_de_estilos = "<style>" in respuesta.text
+        usa_estilos_en_linea = 'style="' in respuesta.text
+
+        assert usa_bloque_de_estilos or usa_estilos_en_linea, "el informe dejó de traer estilos"
+        assert "'unsafe-inline'" in csp.split("style-src")[1].split(";")[0], (
+            "el informe trae estilos dentro del HTML pero su CSP los bloquea: "
+            "el dueño lo recibiría como texto plano"
+        )
+
+    def test_el_informe_no_ejecuta_javascript(self, negocio, cliente):
+        """La contrapartida de relajar los estilos: los scripts quedan prohibidos
+        del todo. El informe no tiene ni una línea de JavaScript."""
+        respuesta = cliente.get(f"/informe/{negocio.token}")
+
+        assert "<script" not in respuesta.text.lower()
+        assert "script-src 'none'" in self._csp(respuesta)
+
+    def test_la_landing_conserva_la_politica_estricta(self, negocio, visitante):
+        """Relajar el informe no puede aflojar la página pública, que es donde
+        entra gente desconocida y donde sí hay un formulario."""
+        csp = self._csp(visitante().get(f"/r/{negocio.mesa}"))
+
+        assert "'unsafe-inline'" not in csp
+        assert "script-src 'self'" in csp
+
+    def test_el_informe_trae_de_verdad_sus_graficos(self, negocio, cliente):
+        """Los gráficos son bloques de color con ancho calculado, no imágenes.
+        Si alguien los reemplazara por algo que dependa de un recurso externo, el
+        informe dejaría de servir por correo."""
+        from datetime import datetime, timezone
+
+        from tests.conftest import add_visit
+
+        add_visit(negocio.id, negocio.mesa_id, converts=True,
+                  when=datetime(2026, 8, 5, 12, tzinfo=timezone.utc))
+
+        html = cliente.get(f"/informe/{negocio.token}?mes=2026-08").text
+
+        assert 'class="fill"' in html or "class=\"fill" in html, "faltan las barras de conversión"
+        assert "style=\"width:" in html, "las barras necesitan su ancho en línea"

@@ -20,7 +20,7 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, 189 tests. Demo panel:
+report with automatic delivery, client onboarding, migrations, 193 tests. Demo panel:
 `demo@cafe.cl` / `demo1234`. Nothing has been deployed or published — the user has not bought the
 domain yet, and printing a plaque with a temporary URL is the one irreversible mistake to avoid.
 
@@ -110,7 +110,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 189 tests
+pytest -q                       # 193 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
@@ -250,7 +250,15 @@ so an honest typo isn't punished.
 ## Security headers
 
 [app/middleware.py](app/middleware.py) adds hardening headers to every response, plus a strict
-CSP on public pages only — Dash generates its own inline scripts and a strict CSP would break the
+CSP on public pages only. **The report gets its own CSP** (`REPORT_CSP`): it is a self-contained
+document — stylesheet inside the HTML, every bar sized by an inline `style=` — because the same file
+must render identically served by the app, saved to PDF from a browser, and attached to an email, so
+an external stylesheet would break it in the two cases the owner actually sees. Under the public CSP
+the browser dropped every one of those styles and the report reached the client as plain text with
+no charts at all. Only `style-src` is relaxed; `script-src` goes to `'none'`, which costs nothing
+since the report has no JavaScript. **The test suite could not see this** — CSP is enforced by the
+browser, so the HTML arrived intact for a `TestClient`; `tests/test_seguridad.py::TestElInformeSeVeComoDebe`
+now asserts the consistency between the styles the document uses and what its policy permits — Dash generates its own inline scripts and a strict CSP would break the
 panel, which is behind a login anyway. `Referrer-Policy` is load-bearing here, not decoration:
 without it the browser would send the full landing URL — placement token included — to Google as
 the referrer. The landing's JS lives in `static/landing.js` rather than inline so the CSP can ban

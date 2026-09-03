@@ -53,6 +53,31 @@ PUBLIC_CSP = (
     b"frame-ancestors 'none'"
 )
 
+# El informe necesita su propia política porque es un documento autocontenido:
+# lleva su hoja de estilos dentro del HTML y dibuja cada barra con un style= en
+# línea, para que el mismo archivo se vea igual servido por la app, guardado a
+# PDF desde el navegador o adjuntado a un correo. Un CSS externo lo rompería
+# justo en los dos casos que más importan, que son los que ve el dueño.
+#
+# Con PUBLIC_CSP el navegador descartaba TODOS esos estilos y el informe se veía
+# como texto plano, sin un solo gráfico. La suite no lo detectó porque la CSP la
+# aplica el navegador, no el servidor: para los tests el HTML llegaba perfecto.
+#
+# Se relaja únicamente style-src. script-src sigue estricto, y eso es lo que
+# importa: el informe no tiene ni una línea de JavaScript, así que un script
+# inyectado no se ejecuta. Los textos de las quejas, que es el único contenido
+# que escribe un desconocido, van escapados por Jinja2.
+REPORT_CSP = (
+    b"default-src 'self'; "
+    b"script-src 'none'; "
+    b"style-src 'self' 'unsafe-inline'; "
+    b"img-src 'self' data:; "
+    b"form-action 'none'; "
+    b"base-uri 'none'; "
+    b"frame-ancestors 'none'"
+)
+REPORT_PREFIX = "/informe"
+
 
 class DashboardAuthMiddleware:
     def __init__(self, app: ASGIApp) -> None:
@@ -95,7 +120,10 @@ class SecurityHeadersMiddleware:
                 presentes = {k.lower() for k, _ in headers}
                 extra = dict(BASE_SECURITY_HEADERS)
                 if es_publica:
-                    extra[b"content-security-policy"] = PUBLIC_CSP
+                    ruta = scope["path"]
+                    extra[b"content-security-policy"] = (
+                        REPORT_CSP if ruta.startswith(REPORT_PREFIX) else PUBLIC_CSP
+                    )
                 if settings.base_url.startswith("https://"):
                     extra[HSTS[0]] = HSTS[1]
                 if scope["path"].startswith(PUBLIC_LANDING_PREFIX):
