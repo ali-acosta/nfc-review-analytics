@@ -139,3 +139,45 @@ class TestFechasCoherentes:
         fila = metrics.load_feedback(negocio.id).iloc[0]
 
         assert pd.isna(fila["resolved_at"])
+
+
+class TestLaDemoQuedaUsable:
+    def test_el_seed_deja_credenciales_para_entrar_al_panel(self):
+        """El README publica demo@cafe.cl / demo1234. Si el seed no las crea,
+        existen solo en la base de quien las tecleó una vez y cualquiera que clone
+        el repositorio se queda afuera."""
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+        from scripts.seed_demo_business import DEMO_EMAIL, DEMO_PASSWORD, seed
+
+        seed()
+
+        with TestClient(app, follow_redirects=False) as c:
+            login = c.post("/panel/login", data={"email": DEMO_EMAIL, "password": DEMO_PASSWORD})
+
+        assert login.status_code == 302
+        assert login.headers["location"] == "/dashboard/"
+
+
+class TestRotacionDelEnlaceDelInforme:
+    def test_rotar_invalida_el_enlace_anterior(self, negocio):
+        """El enlace del informe no pide clave, a propósito. El precio es que un
+        correo reenviado lo deja vivo para siempre; esto es la forma de cortarlo."""
+        from fastapi.testclient import TestClient
+
+        from app.database import SessionLocal
+        from app.main import app
+        from app.models import Business
+        from scripts.new_client import rotar_token
+
+        anterior = negocio.token
+        rotar_token(anterior)
+
+        with SessionLocal() as db:
+            nuevo = db.get(Business, negocio.id).dashboard_token
+
+        assert nuevo != anterior
+        with TestClient(app) as c:
+            assert c.get(f"/informe/{anterior}").status_code == 404
+            assert c.get(f"/informe/{nuevo}").status_code == 200

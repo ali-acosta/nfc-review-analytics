@@ -12,8 +12,15 @@ module ordering** and tracks what is actually built.
 current state, the decisions already settled (don't reopen them), what is blocked waiting on the
 user, and one open question to ask them before building anything.
 
+**Then read [docs/revision-tecnica-2026-09-03.md](docs/revision-tecnica-2026-09-03.md)** before
+touching code. It is the full technical review: findings ranked by severity, each with its fix and
+its test; the list of things that are right *and must not be "fixed"*; the recommended order of
+work; and the next features. Four findings there break with the first paying client and the test
+suite cannot see them (they only appear on Postgres, behind Render's proxy, or in GitHub Actions).
+Tick items off in that document as they are resolved.
+
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, 149 tests. Demo panel:
+report with automatic delivery, client onboarding, migrations, 176 tests. Demo panel:
 `demo@cafe.cl` / `demo1234`. Nothing has been deployed or published — the user has not bought the
 domain yet, and printing a plaque with a temporary URL is the one irreversible mistake to avoid.
 
@@ -36,7 +43,10 @@ row, and why `BASE_URL` must point at the final owned domain before anything is 
 a client pays for. It is computed over *unique sessions*, never raw event rows — an earlier
 version divided conversions by a denominator that included those same conversions, which capped
 the metric at 50%. Bots and page reloads are excluded at write time. Don't "simplify" this by
-counting rows. All of this lives in [app/services/metrics.py](app/services/metrics.py), which is
+counting rows. Period filtering lives in SQL (`load_taps(business_id, start, end)`), translating the
+business's local-time bounds to UTC — the panel re-queries on a timer, so loading a venue's whole
+history to show one month stops being free once a client has been installed for a year.
+All of this lives in [app/services/metrics.py](app/services/metrics.py), which is
 the single source of truth: the dashboard and the monthly report both read from it so they can
 never show different numbers for the same period. Never compute a client-facing metric inline.
 
@@ -88,11 +98,13 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 149 tests
+pytest -q                       # 176 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
-Tests run on every push via `.github/workflows/tests.yml`. They exist mainly to protect three
+Tests run on every push via `.github/workflows/tests.yml`, **on SQLite and Postgres both** —
+the two disagree (string lengths, timezone offsets) and that disagreement has already caused
+two bugs that only showed up in production. They exist mainly to protect three
 things: the conversion metric (which already broke once, silently), local-time bucketing, and
 the no-gating rule —
 `tests/test_flow.py::TestPoliticaDeGoogle` fails if a star selector reappears before the Google
@@ -102,8 +114,10 @@ time; without that the suite would write to the real project database.
 
 No linter or build step.
 
-**Schema changes go through Alembic.** `init_db()` still runs `create_all` (fast path for tests
-and a fresh dev DB), but any change to an existing database must be a migration — once a client
+**Schema changes go through Alembic.** `init_db()` runs `create_all` **only on SQLite** (fast path
+for tests and a fresh dev DB); on any other engine it just logs a reminder, because creating tables
+without Alembic's version row makes the next `upgrade head` fail on already-existing tables. Any
+change to an existing database must be a migration — once a client
 has a plaque installed, their tap history is irreplaceable.
 
 ```powershell
@@ -207,7 +221,12 @@ A placement token is **public by design** — it is glued to a table where anyon
 script that clears cookies between requests could otherwise inflate a client's visits and sink
 the conversion rate they pay for. [app/services/ratelimit.py](app/services/ratelimit.py) caps
 requests per IP, reading `x-forwarded-for` because the host terminates TLS in front (without it
-every visitor would share the proxy's IP and one bucket).
+every visitor would share the proxy's IP and one bucket). **That header is read right-to-left,
+taking the rightmost public IP**: Render appends to whatever the client sent rather than replacing
+it, so trusting the first entry let anyone rotate a fake IP per request and slip every limit,
+brute-forcing the login included. A returning session (one that already has a `landed` event)
+converts even when its IP is capped — otherwise the limit could only ever *lower* a client's
+conversion during their busiest hour, since a venue's customers all share one IP.
 
 The public limits deliberately **degrade the metric, never the customer**: over the limit the
 landing still renders and `/go` still redirects, only the DB write is skipped. Customers in a
@@ -228,7 +247,9 @@ inline scripts; putting it back in the template would silently break the private
 ## Operations
 
 `configure_logging` runs at startup ([app/logging_config.py](app/logging_config.py)); startup
-also warns about a missing `SESSION_SECRET` or a non-HTTPS `BASE_URL`. `/health` deliberately
+also warns about a missing `SESSION_SECRET` or a non-HTTPS `BASE_URL`, and wires Sentry when
+`SENTRY_DSN` is set (empty = off, and a failure to initialise never takes the app down;
+`send_default_pii=False` keeps customers' private complaints from reaching a third party). `/health` deliberately
 does **not** touch the DB (a database blip shouldn't make the host restart a healthy process);
 `/health/ready` does, for checking by hand whether the service is genuinely usable.
 `scripts/export_data.py` writes a client's taps and complaints to CSV (utf-8-sig, or Excel on

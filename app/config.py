@@ -2,7 +2,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    # env_ignore_empty: una variable definida pero vacía usa el valor por defecto
+    # en vez de intentar convertirla. Sin esto, un secret que no existe llega como
+    # cadena vacía y SMTP_PORT="" tumba el proceso entero al arrancar, porque no
+    # se puede convertir a entero. Un canal de aviso mal configurado no puede
+    # impedir que la app levante.
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", env_ignore_empty=True
+    )
 
     database_url: str = "sqlite:///./nfc_analytics.db"
     base_url: str = "http://localhost:8000"
@@ -23,6 +30,13 @@ class Settings(BaseSettings):
     # DEBUG deja rastro de cada consulta y llena el panel de logs del
     # hosting; INFO es lo razonable en producción.
     log_level: str = "INFO"
+
+    # Monitoreo de errores. Vacío = apagado, que es el estado por defecto: la
+    # integración viaja lista en el código y se enciende sola cuando se pega el
+    # DSN, sin tocar nada más. Sin esto, un error 500 en producción solo se
+    # descubre si un cliente lo cuenta, y un cliente parado en un mostrador no
+    # cuenta nada: se va.
+    sentry_dsn: str = ""
 
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""

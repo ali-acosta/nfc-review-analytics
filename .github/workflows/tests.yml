@@ -1,8 +1,14 @@
-# Corre la suite en cada push y pull request.
+# Corre la suite en cada push y pull request, sobre los DOS motores de base de datos.
 #
 # Los tests protegen sobre todo dos cosas: que la métrica de conversión siga
 # siendo correcta (ya se rompió una vez, en silencio) y que no se reintroduzca
 # el filtrado de reseñas que viola las políticas de Google.
+#
+# Postgres corre además de SQLite porque los dos no se comportan igual y la
+# diferencia solo aparece en producción: SQLite ignora el largo declarado de una
+# columna y descarta la zona horaria; Postgres aplica lo primero y convierte lo
+# segundo. Ese desajuste ya produjo dos bugs. Desarrollar contra SQLite está
+# bien; entregar sin haber probado nunca contra el motor real, no.
 
 name: Tests
 
@@ -14,6 +20,32 @@ on:
 jobs:
   pytest:
     runs-on: ubuntu-latest
+    strategy:
+      # Si un motor falla, interesa igual ver el resultado del otro: dice si el
+      # bug es del código o de la diferencia entre motores.
+      fail-fast: false
+      matrix:
+        motor: [sqlite, postgres]
+
+    name: pytest (${{ matrix.motor }})
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: nfc
+          POSTGRES_PASSWORD: nfc
+          POSTGRES_DB: nfc_test
+        ports:
+          - 5432:5432
+        # Sin el health check, los tests arrancan antes de que Postgres acepte
+        # conexiones y fallan por una carrera, no por un bug.
+        options: >-
+          --health-cmd "pg_isready -U nfc"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -25,3 +57,6 @@ jobs:
       - run: pip install -r requirements-dev.txt
 
       - run: pytest -q
+        env:
+          # Vacío en el motor sqlite: conftest cae a su SQLite temporal.
+          TEST_DATABASE_URL: ${{ matrix.motor == 'postgres' && 'postgresql+psycopg://nfc:nfc@localhost:5432/nfc_test' || '' }}

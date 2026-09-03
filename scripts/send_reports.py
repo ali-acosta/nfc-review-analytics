@@ -65,7 +65,11 @@ def main() -> None:
             sys.exit("No hay clientes a los que enviar.")
 
         print(f"Informe de {year}-{month:02d} · {len(clientes)} cliente(s)\n")
-        fallidos = []
+        # Omitido y fallido no son lo mismo: un cliente sin canal configurado es
+        # una tarea pendiente del operador, no un error del envío. Mezclarlos deja
+        # el workflow mensual en rojo todos los meses y enseña a ignorarlo, que es
+        # peor que no tener alerta.
+        fallidos, omitidos = [], []
 
         for business in clientes:
             print(f"  {business.name}")
@@ -77,7 +81,7 @@ def main() -> None:
 
             if not business.telegram_chat_id and not business.alert_email:
                 print("      sin canal de aviso configurado (ni Telegram ni correo), se omite\n")
-                fallidos.append(business.name)
+                omitidos.append(business.name)
                 continue
 
             if asyncio.run(enviar(business, year, month, not args.sin_pdf)):
@@ -86,6 +90,11 @@ def main() -> None:
                 print("      FALLÓ el envío\n")
                 fallidos.append(business.name)
 
+    if omitidos:
+        print(f"Sin canal de aviso configurado ({len(omitidos)}): {', '.join(omitidos)}")
+        print("  Asígnales correo o Telegram para que reciban su informe.\n")
+
+    # Solo un fallo real corta con error: es lo que tiene que ver el agendador.
     if fallidos:
         sys.exit(f"No se pudo enviar a: {', '.join(fallidos)}")
 

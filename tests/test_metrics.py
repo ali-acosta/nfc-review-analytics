@@ -1,7 +1,7 @@
 """La métrica es lo que el cliente paga. Estos tests existen para que no vuelva
 a romperse en silencio."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.services import metrics
 from tests.conftest import add_tap, add_visit
@@ -145,3 +145,58 @@ class TestPorDia:
 
         assert list(tabla["visitas"]) == [1, 1]
         assert len(tabla) == 2
+
+
+class TestFiltroEnLaConsulta:
+    """El filtro por fecha vive en SQL, no solo en pandas: el panel recarga en
+    cada refresco y por cada pestaña abierta, así que traer toda la historia de un
+    local con un año instalado es mover cientos de miles de filas cada vez.
+
+    Lo que importa es que filtrar en SQL dé EXACTAMENTE lo mismo que filtrar en
+    memoria, incluidos los bordes en hora local."""
+
+    def test_da_el_mismo_resultado_que_filtrar_en_memoria(self, negocio):
+        agosto = datetime(2026, 8, 15, 12, tzinfo=timezone.utc)
+        julio = datetime(2026, 7, 15, 12, tzinfo=timezone.utc)
+        for _ in range(6):
+            add_visit(negocio.id, negocio.mesa_id, converts=True, when=agosto)
+        for _ in range(4):
+            add_visit(negocio.id, negocio.mesa_id, converts=False, when=julio)
+
+        inicio, fin = metrics.month_bounds(2026, 8)
+        en_memoria = metrics.funnel(metrics.in_period(metrics.load_taps(negocio.id), inicio, fin))
+        en_sql = metrics.funnel(metrics.load_taps(negocio.id, inicio, fin))
+
+        assert en_sql == en_memoria
+        assert en_sql["visits"] == 6
+
+    def test_el_borde_del_mes_se_corta_en_hora_local(self, negocio):
+        """21:30 del 31 de agosto en Chile son las 01:30 UTC del 1 de septiembre.
+        Si el filtro de SQL comparara en UTC, esta visita se iría al mes siguiente
+        aunque el resto del sistema la cuente en agosto."""
+        chile = timezone(timedelta(hours=-4))
+        add_visit(negocio.id, negocio.mesa_id, when=datetime(2026, 8, 31, 21, 30, tzinfo=chile))
+
+        agosto = metrics.funnel(metrics.load_taps(negocio.id, *metrics.month_bounds(2026, 8)))
+        septiembre = metrics.funnel(metrics.load_taps(negocio.id, *metrics.month_bounds(2026, 9)))
+
+        assert agosto["visits"] == 1
+        assert septiembre["visits"] == 0
+
+    def test_las_quejas_tambien_se_filtran_en_la_consulta(self, negocio):
+        from app.database import SessionLocal
+        from app.models import Feedback
+
+        with SessionLocal() as db:
+            db.add_all([
+                Feedback(business_id=negocio.id, placement_id=negocio.mesa_id, message="de agosto",
+                         created_at=datetime(2026, 8, 10, 15, tzinfo=timezone.utc)),
+                Feedback(business_id=negocio.id, placement_id=negocio.mesa_id, message="de julio",
+                         created_at=datetime(2026, 7, 10, 15, tzinfo=timezone.utc)),
+            ])
+            db.commit()
+
+        del_mes = metrics.load_feedback(negocio.id, *metrics.month_bounds(2026, 8))
+
+        assert len(del_mes) == 1
+        assert del_mes.iloc[0]["message"] == "de agosto"

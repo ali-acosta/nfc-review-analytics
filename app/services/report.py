@@ -9,10 +9,12 @@ breaking the feature.
 
 from datetime import date, datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from sqlalchemy import select
 
+from app.config import settings
 from app.database import SessionLocal
 from app.models import Business
 from app.services import metrics
@@ -27,6 +29,17 @@ MONTHS_ES = [
 
 class PDFEngineUnavailable(RuntimeError):
     """WeasyPrint is installed but its native libraries are not loadable."""
+
+
+def _hoy_local() -> date:
+    """Hoy en la zona del negocio, no en la del servidor.
+
+    El servidor corre en UTC. Entre las 21:00 y medianoche en Chile, `date.today()`
+    ya cambió de día allá y, el último día del mes, "el último mes completo" pasa a
+    apuntar al mes que en Chile todavía no termina. Es la misma regla del resto del
+    sistema: los cortes de tiempo se hacen en hora local del negocio.
+    """
+    return datetime.now(ZoneInfo(settings.timezone)).date()
 
 
 def _env() -> Environment:
@@ -49,11 +62,15 @@ def build_context(business: Business, year: int, month: int) -> dict:
     prev_year, prev_month = metrics.previous_month(year, month)
     prev_start, prev_end = metrics.month_bounds(prev_year, prev_month)
 
-    all_taps = metrics.load_taps(business.id)
-    taps = metrics.in_period(all_taps, start, end)
-    prev_taps = metrics.in_period(all_taps, prev_start, prev_end)
+    # Una sola consulta que cubre el mes del informe y el anterior (que se usa
+    # para la comparación), y luego se parten en memoria. Traer toda la historia
+    # del negocio para mostrar un mes era gratis con datos de demo y deja de
+    # serlo cuando un local lleva un año instalado.
+    ventana = metrics.load_taps(business.id, prev_start, end)
+    taps = metrics.in_period(ventana, start, end)
+    prev_taps = metrics.in_period(ventana, prev_start, prev_end)
 
-    feedback = metrics.in_period(metrics.load_feedback(business.id), start, end)
+    feedback = metrics.load_feedback(business.id, start, end)
 
     now = metrics.funnel(taps)
     before = metrics.funnel(prev_taps)
@@ -65,7 +82,7 @@ def build_context(business: Business, year: int, month: int) -> dict:
     return {
         "business": business,
         "period_label": f"{MONTHS_ES[month - 1].capitalize()} {year}",
-        "generated_on": date.today().strftime("%d-%m-%Y"),
+        "generated_on": _hoy_local().strftime("%d-%m-%Y"),
         "prev_label": f"{MONTHS_ES[prev_month - 1]} {prev_year}",
         "kpis": {
             "visits": now["visits"],
@@ -147,7 +164,7 @@ def resolve_period(mes: str | None) -> tuple[int, int]:
     would show a half-empty period for most of the month.
     """
     if not mes:
-        today = date.today()
+        today = _hoy_local()
         return metrics.previous_month(today.year, today.month)
     parsed = datetime.strptime(mes, "%Y-%m")
     return parsed.year, parsed.month

@@ -20,11 +20,37 @@ from app.routers import auth, redirect, reports
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
+def _configurar_sentry(log: logging.Logger) -> None:
+    """Enciende el monitoreo de errores si hay DSN. Nunca tumba el arranque.
+
+    Que falte la librería o que el DSN esté mal escrito no puede impedir que la
+    app levante: el monitoreo es una comodidad del operador, no una parte del
+    flujo que le da una reseña a un cliente.
+    """
+    if not settings.sentry_dsn:
+        log.info("SENTRY_DSN vacío: monitoreo de errores desactivado.")
+        return
+    try:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            traces_sample_rate=0,
+            # Los comentarios privados de los clientes finales no viajan a un
+            # tercero: son datos personales de gente que no es cliente nuestro.
+            send_default_pii=False,
+        )
+        log.info("Monitoreo de errores activo.")
+    except Exception as exc:
+        log.warning("No se pudo activar el monitoreo de errores: %s", exc)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     configure_logging(settings.log_level)
     log = logging.getLogger(__name__)
 
+    _configurar_sentry(log)
     init_db()
 
     if not settings.session_secret:

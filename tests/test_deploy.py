@@ -78,3 +78,50 @@ class TestConfiguracionDeEjemplo:
         documentadas = set(re.findall(r"^([A-Z_]+)=", ejemplo, re.MULTILINE))
 
         assert declaradas <= documentadas, f"faltan en .env.example: {declaradas - documentadas}"
+
+
+class TestLosCanalesDeAvisoLleganAProduccion:
+    """Una variable que la app lee pero que el despliegue nunca pasa es un canal
+    de aviso que no existe en producción, aunque el código esté perfecto.
+
+    Pasó exactamente eso con el correo: `send_email` estaba escrito y probado,
+    pero ni el workflow mensual ni render.yaml pasaban las variables SMTP, así
+    que en producción se saltaba el envío en silencio."""
+
+    def _campos_smtp(self):
+        from app.config import Settings
+
+        return {n.upper() for n in Settings.model_fields if n.startswith("smtp_")}
+
+    def test_el_envio_mensual_recibe_las_credenciales_de_correo(self):
+        workflow = (RAIZ / ".github" / "workflows" / "informe-mensual.yml").read_text(encoding="utf-8")
+
+        # SMTP_PORT tiene default razonable (587) y no necesita ir como secret.
+        faltan = {c for c in self._campos_smtp() - {"SMTP_PORT"} if c not in workflow}
+
+        assert not faltan, f"el workflow mensual no pasa: {faltan}"
+
+    def test_el_servidor_web_recibe_las_credenciales_de_correo(self):
+        """La alerta de queja sale del servidor web, no del workflow: es la que
+        llega en el momento y la que sostiene la suscripción."""
+        blueprint = (RAIZ / "render.yaml").read_text(encoding="utf-8")
+
+        faltan = {c for c in self._campos_smtp() - {"SMTP_PORT"} if c not in blueprint}
+
+        assert not faltan, f"render.yaml no declara: {faltan}"
+
+    def test_una_variable_vacia_no_tumba_el_arranque(self):
+        """Un secret que no existe llega como cadena vacía. Sin env_ignore_empty,
+        SMTP_PORT='' revienta al convertir a entero y se cae el proceso entero."""
+        import os
+        from app.config import Settings
+
+        previo = os.environ.get("SMTP_PORT")
+        os.environ["SMTP_PORT"] = ""
+        try:
+            assert Settings().smtp_port == 587
+        finally:
+            if previo is None:
+                os.environ.pop("SMTP_PORT", None)
+            else:
+                os.environ["SMTP_PORT"] = previo

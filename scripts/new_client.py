@@ -8,6 +8,7 @@ Reemplaza el tener que escribir Python a mano para dar de alta a alguien.
 
     python -m scripts.new_client --listar               # ver clientes y sus tokens
     python -m scripts.new_client --agregar TOKEN --placas "Mesa 7,Mesa 8"
+    python -m scripts.new_client --rotar-token TOKEN     # invalida el enlace del informe
 """
 
 import argparse
@@ -17,7 +18,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.database import SessionLocal, init_db
-from app.models import Business, Placement
+from app.models import Business, Placement, new_token
 from app.services.auth import generate_password, hash_password
 from app.services.qrcode_gen import generate_qr_for_token, target_url
 
@@ -187,6 +188,34 @@ def reset_password(token: str) -> None:
         print("\n    Anótala ahora: no se puede volver a mostrar.\n")
 
 
+def rotar_token(token: str) -> None:
+    """Genera un enlace de informe nuevo e invalida el anterior.
+
+    El enlace del informe no pide contraseña, a propósito: va por correo al dueño
+    como el enlace de una factura. El precio de esa comodidad es que un correo
+    reenviado, una casilla comprometida o un dueño que deja el negocio dejan ese
+    enlace vivo para siempre, con los teléfonos y las quejas de los clientes
+    finales adentro. Esto es la forma de cortarlo.
+
+    Ojo: los enlaces viejos dejan de funcionar. Hay que mandarle el nuevo al dueño.
+    """
+    with SessionLocal() as db:
+        business = db.scalar(select(Business).where(Business.dashboard_token == token))
+        if business is None:
+            sys.exit(f"No existe un cliente con el token '{token}'. Usa --listar para verlos.")
+
+        anterior = business.dashboard_token
+        business.dashboard_token = new_token()
+        db.commit()
+        db.refresh(business)
+
+        base = settings.base_url.rstrip("/")
+        print(f"\n  Enlace de informe nuevo para {business.name}\n")
+        print(f"    Antes:  {base}/informe/{anterior}   (ya no funciona)")
+        print(f"    Ahora:  {base}/informe/{business.dashboard_token}")
+        print("\n    Mándaselo al dueño: el enlace anterior quedó invalidado.\n")
+
+
 def interactivo() -> tuple[str, str, list[str], str, str]:
     print(f"\n{LINE}\n  ALTA DE CLIENTE NUEVO\n{LINE}\n")
     nombre = _ask("  Nombre del negocio: ")
@@ -221,6 +250,11 @@ def main() -> None:
     parser.add_argument(
         "--reset-password", metavar="TOKEN", help="Genera una contraseña nueva para un cliente."
     )
+    parser.add_argument(
+        "--rotar-token",
+        metavar="TOKEN",
+        help="Genera un enlace de informe nuevo e invalida el anterior.",
+    )
     args = parser.parse_args()
 
     init_db()
@@ -230,6 +264,9 @@ def main() -> None:
 
     if args.reset_password:
         return reset_password(args.reset_password)
+
+    if args.rotar_token:
+        return rotar_token(args.rotar_token)
 
     labels = [p.strip() for p in args.placas.split(",") if p.strip()] if args.placas else []
 

@@ -136,7 +136,7 @@ def seed(days: int, wipe: bool) -> None:
         print(f"Generados {days} días de actividad para {business.name}:")
         print(f"  {real} visitas reales · {clicks} clicks a Google · {len(feedbacks)} quejas privadas")
         print(f"  {bots} visitas de bots (se excluyen de toda métrica)")
-        print(f"\nPanel:   /dashboard/?t={business.dashboard_token}")
+        print("\nPanel:   /panel/login  (demo@cafe.cl / demo1234)")
         print(f"Informe: /informe/{business.dashboard_token}")
 
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request, Response
-from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
@@ -10,12 +10,24 @@ from app.config import settings
 from app.database import get_db
 from app.models import Feedback, Placement, Tap
 from app.services.notify import notify
-from app.services.qrcode_gen import generate_qr_for_token
+from app.services.qrcode_gen import qr_png_bytes
 from app.services.ratelimit import client_ip, feedback_limiter, public_limiter
 from app.services.tracking import SESSION_COOKIE, SESSION_MAX_AGE, is_bot, new_session_id
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
+
+# Los largos se leen del modelo y no se escriben a mano: si algún día cambia la
+# columna, el recorte la sigue sola.
+#
+# Recortar no es cosmético. SQLite ignora el largo declarado y Postgres lo aplica:
+# sin esto, un cliente que escriba un texto largo —o un teléfono con un user-agent
+# gigante— provoca un error 500 en producción, parado en el mostrador, después de
+# haberse tomado el trabajo de escribir. Es la misma trampa que ya mordió con las
+# fechas: desarrollo permisivo, producción estricta.
+MAX_CONTACTO = Feedback.__table__.c.contact.type.length
+MAX_MENSAJE = Feedback.__table__.c.message.type.length
+MAX_USER_AGENT = Tap.__table__.c.user_agent.type.length
 
 
 def _get_placement_or_404(db: Session, token: str) -> Placement:
@@ -50,7 +62,7 @@ def _log(db: Session, placement: Placement, session_id: str, user_agent: str, ou
             business_id=placement.business_id,
             placement_id=placement.id,
             session_id=session_id,
-            user_agent=user_agent,
+            user_agent=user_agent[:MAX_USER_AGENT],
             is_bot=is_bot(user_agent),
             outcome=outcome,
         )
@@ -113,9 +125,19 @@ def go_to_google(token: str, request: Request, db: Session = Depends(get_db)):
     session_id, _ = _session_id(request)
     user_agent = request.headers.get("user-agent", "")
 
+    # Una sesión que ya tiene su visita registrada es un navegador real siguiendo
+    # el flujo, así que su conversión se cuenta aunque la IP esté en el límite.
+    #
+    # Sin esta excepción, la degradación no es neutra: en un almuerzo lleno, donde
+    # todos comparten la IP del local, la visita se cuenta y el click siguiente se
+    # pierde, así que el límite solo puede BAJAR la conversión del cliente, y
+    # justo en su mejor momento. Un script que borra cookies nunca tiene una
+    # visita previa asociada a su sesión nueva, así que sigue topando con el tope.
+    ya_visito = _already_logged(db, session_id, placement.id, "landed")
+
     # A click with no preceding visit (direct link, cleared cookies) would push
     # conversion above 100%, so make sure the visit exists first.
-    if _debe_contarse(request):
+    if ya_visito or _debe_contarse(request):
         _log(db, placement, session_id, user_agent, "landed")
         _log(db, placement, session_id, user_agent, "went_to_google")
 
@@ -138,6 +160,13 @@ async def submit_feedback(
     session_id, _ = _session_id(request)
     user_agent = request.headers.get("user-agent", "")
     business = placement.business
+
+    # Se recorta a lo que la columna admite y se descarta una calificación fuera
+    # de rango: el formulario ya lo limita, pero un POST a mano no pasa por él.
+    contact = contact.strip()[:MAX_CONTACTO]
+    message = message.strip()[:MAX_MENSAJE]
+    if rating is not None and not 1 <= rating <= 5:
+        rating = None
 
     # Cada comentario despierta el teléfono del dueño. Pasado el límite se
     # responde igual con la página de gracias —quien abusa no obtiene señal de
@@ -167,7 +196,12 @@ async def submit_feedback(
             f"Mensaje: {message or '(sin mensaje)'}",
         )
 
-    response = templates.TemplateResponse(request, "feedback_thanks.html", {"business": business})
+    # El placement viaja a la plantilla para que su botón de Google pase por /go
+    # y la conversión quede contada: quien tuvo un problema, lo dijo y AUN ASÍ
+    # fue a dejar su reseña es justamente el caso que más vale la pena medir.
+    response = templates.TemplateResponse(
+        request, "feedback_thanks.html", {"business": business, "placement": placement}
+    )
     _set_session_cookie(response, session_id)
     return response
 
@@ -175,5 +209,4 @@ async def submit_feedback(
 @router.get("/r/{token}/qr.png")
 def qr_code(token: str, db: Session = Depends(get_db)):
     _get_placement_or_404(db, token)
-    path = generate_qr_for_token(token)
-    return FileResponse(path, media_type="image/png")
+    return Response(content=qr_png_bytes(token), media_type="image/png")

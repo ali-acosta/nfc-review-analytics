@@ -11,6 +11,7 @@ scope antes de que la petición llegue al mount, no solo la respuesta.
 from starlette.responses import RedirectResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.config import settings
 from app.services.auth import SESSION_KEY
 
 BUSINESS_HEADER = b"x-business-id"
@@ -26,6 +27,18 @@ BASE_SECURITY_HEADERS = {
     b"x-frame-options": b"DENY",
     b"referrer-policy": b"strict-origin-when-cross-origin",
 }
+
+# Solo tiene sentido sobre https: enviarla en desarrollo obligaría al navegador a
+# recordar que localhost debe usar TLS, y romper el desarrollo por meses.
+HSTS = (b"strict-transport-security", b"max-age=31536000; includeSubDomains")
+
+# Las landings NO deben indexarse. Si un cliente comparte el enlace de su placa y
+# Google lo indexa, empiezan a llegar visitantes de escritorio desde el buscador:
+# navegadores reales, que no se filtran como bots y le inflan las visitas a esa
+# placa, hundiendo su conversión. La URL de una placa es para quien está sentado
+# en esa mesa, no para el mundo.
+NOINDEX = (b"x-robots-tag", b"noindex, nofollow")
+PUBLIC_LANDING_PREFIX = "/r/"
 
 # CSP estricta solo para las páginas públicas, que es donde entra gente
 # desconocida. El panel queda fuera: Dash genera sus propios scripts en línea y
@@ -83,6 +96,10 @@ class SecurityHeadersMiddleware:
                 extra = dict(BASE_SECURITY_HEADERS)
                 if es_publica:
                     extra[b"content-security-policy"] = PUBLIC_CSP
+                if settings.base_url.startswith("https://"):
+                    extra[HSTS[0]] = HSTS[1]
+                if scope["path"].startswith(PUBLIC_LANDING_PREFIX):
+                    extra[NOINDEX[0]] = NOINDEX[1]
                 # No se pisa lo que la respuesta ya haya definido a propósito.
                 headers.extend((k, v) for k, v in extra.items() if k not in presentes)
                 message = {**message, "headers": headers}

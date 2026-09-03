@@ -7,17 +7,42 @@ taken from the URL — that is what made the old capability-token version
 unsuitable for paying clients.
 """
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import flask
 import pandas as pd
 import plotly.express as px
-from dash import Dash, Input, Output, State, dash_table, dcc, html, no_update
+from dash import Dash, Input, Output, State, dash_table, dcc, html
 
+from app.config import settings
 from app.database import SessionLocal
 from app.middleware import BUSINESS_HEADER
 from app.models import Business
 from app.services import inbox, metrics
 
-REFRESH_MS = 5000
+MESES = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+]
+
+# Nadie mira un panel de reseñas cada cinco segundos, y cada refresco es una
+# consulta completa. Un minuto es de sobra, y para lo demás está el botón.
+REFRESH_MS = 60_000
+
+# Períodos que ofrece el panel. "Este mes" es el valor por defecto porque es la
+# semántica del informe mensual: sin esto, el panel mostraba toda la historia y el
+# informe un mes, y el dueño veía dos cifras distintas de "visitas únicas" sin
+# ninguna explicación.
+PERIODO_MES_ACTUAL = "mes-actual"
+PERIODO_MES_ANTERIOR = "mes-anterior"
+PERIODO_TODO = "todo"
+
+OPCIONES_PERIODO = [
+    {"label": "Este mes", "value": PERIODO_MES_ACTUAL},
+    {"label": "Mes pasado", "value": PERIODO_MES_ANTERIOR},
+    {"label": "Todo", "value": PERIODO_TODO},
+]
 
 CARD_STYLE = {
     "flex": "1 1 160px",
@@ -55,6 +80,25 @@ def _current_business() -> Business | None:
         return None
     with SessionLocal() as db:
         return db.get(Business, int(business_id))
+
+
+def _limites(periodo: str) -> tuple[datetime | None, datetime | None, str]:
+    """Devuelve (inicio, fin, etiqueta) para el período elegido.
+
+    Se calcula en hora local del negocio, igual que el informe: usar la fecha del
+    servidor (UTC) haría que a las 21:00 en Chile "este mes" cambiara antes de
+    tiempo el último día del mes.
+    """
+    if periodo == PERIODO_TODO:
+        return None, None, "todo el historial"
+
+    hoy = datetime.now(ZoneInfo(settings.timezone))
+    year, month = (hoy.year, hoy.month)
+    if periodo == PERIODO_MES_ANTERIOR:
+        year, month = metrics.previous_month(year, month)
+
+    inicio, fin = metrics.month_bounds(year, month)
+    return inicio, fin, f"{MESES[month - 1]} {year}"
 
 
 def _kpi(title: str, value: str, style: dict = VALUE_STYLE) -> html.Div:
@@ -100,6 +144,22 @@ def create_dash_app() -> Dash:
                     ),
                 ],
                 style={"display": "flex", "justifyContent": "space-between", "marginBottom": "18px"},
+            ),
+            html.Div(
+                [
+                    html.Span("Período:", style={**TITLE_STYLE, "marginBottom": "0", "marginRight": "10px"}),
+                    dcc.RadioItems(
+                        id="periodo",
+                        options=OPCIONES_PERIODO,
+                        value=PERIODO_MES_ACTUAL,
+                        inline=True,
+                        inputStyle={"marginRight": "5px"},
+                        labelStyle={"marginRight": "16px", "fontSize": "0.9rem", "cursor": "pointer"},
+                    ),
+                    html.Button("Actualizar", id="actualizar-btn", n_clicks=0,
+                                style={**BUTTON_STYLE, "marginLeft": "auto", "padding": "6px 12px"}),
+                ],
+                style={"display": "flex", "alignItems": "center", "marginBottom": "14px"},
             ),
             html.Div(id="kpi-row", style={"display": "flex", "gap": "12px", "flexWrap": "wrap"}),
             dcc.Graph(id="placement-chart"),
@@ -168,8 +228,10 @@ def create_dash_app() -> Dash:
         Output("placement-chart", "figure"),
         Output("visits-chart", "figure"),
         Input("refresh", "n_intervals"),
+        Input("periodo", "value"),
+        Input("actualizar-btn", "n_clicks"),
     )
-    def refresh(_n_intervals: int):
+    def refresh(_n_intervals: int, periodo: str, _clicks: int):
         business = _current_business()
         if business is None:
             vacio = px.bar(title="")
@@ -181,12 +243,18 @@ def create_dash_app() -> Dash:
                 vacio,
             )
 
+        inicio, fin, etiqueta = _limites(periodo)
+
         # Every number here comes from app.services.metrics so that the panel
         # and the monthly PDF can never disagree about the same month.
-        taps = metrics.load_taps(business.id)
-        feedback = metrics.load_feedback(business.id)
+        taps = metrics.load_taps(business.id, inicio, fin)
         summary = metrics.funnel(taps)
         visits = summary["visits"]
+
+        # El buzón NO se filtra por período: una queja pendiente de hace dos meses
+        # sigue pendiente hoy, y esconderla sería justo lo contrario de para qué
+        # existe la bandeja.
+        feedback = metrics.load_feedback(business.id)
         pendientes = int(feedback["resolved_at"].isna().sum()) if not feedback.empty else 0
 
         kpis = [
@@ -216,7 +284,7 @@ def create_dash_app() -> Dash:
             visits_fig = px.line(title="Visitas por día (sin datos aún)")
 
         return (
-            f"{business.name} — Panel de reseñas",
+            f"{business.name} — Panel de reseñas · {etiqueta}",
             f"/informe/{business.dashboard_token}",
             kpis,
             placement_fig,

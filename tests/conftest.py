@@ -13,7 +13,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 _TMP_DIR = Path(tempfile.mkdtemp(prefix="nfc-tests-"))
-os.environ["DATABASE_URL"] = f"sqlite:///{(_TMP_DIR / 'test.db').as_posix()}"
+# TEST_DATABASE_URL permite correr la misma suite contra Postgres (lo hace CI).
+# Se lee de una variable propia y NO de DATABASE_URL: si alguien tuviera esa
+# exportada en su terminal, la suite escribiría en su base real.
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL") or f"sqlite:///{(_TMP_DIR / 'test.db').as_posix()}"
 os.environ["BASE_URL"] = "http://testserver"
 os.environ["TELEGRAM_BOT_TOKEN"] = ""
 os.environ["TELEGRAM_CHAT_ID"] = ""

@@ -78,8 +78,8 @@ perder su historial. Ahora hay Alembic (`alembic upgrade head`, aplicado solo en
 desde `render.yaml`) y un test que falla si los modelos y las migraciones se desincronizan.
 Ya se estrenó agregando la columna del correo de alertas, con los 1915 taps de demo intactos.
 
-### Calidad — Tests · ✅ 149 tests
-`pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push
+### Calidad — Tests · ✅ 176 tests
+`pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push, sobre SQLite y Postgres
 (`.github/workflows/tests.yml`). Protegen sobre todo la métrica de conversión —que ya se rompió
 una vez en silencio— y la regla de no reintroducir el filtrado de reseñas.
 Encontraron un bug real: `send_alert` solo capturaba errores de red, así que cualquier otra
@@ -131,6 +131,13 @@ la plataforma.
 
 *Estado al 2026-09-03. Esta es la sección para leer primero al retomar.*
 
+> **Revisión técnica completa del 2026-09-03:**
+> [docs/revision-tecnica-2026-09-03.md](docs/revision-tecnica-2026-09-03.md). Tiene cuatro
+> hallazgos que rompen con el primer cliente real y que los tests no ven, el plan de trabajo en
+> orden (fases A a E) y los próximos desarrollos con detalle. **Leerla antes de construir nada** y
+> marcar ahí lo que se vaya resolviendo. La pregunta abierta sobre monitoreo de errores queda
+> respondida en su hallazgo `M1`: la recomendación es sí, integrado y desactivado hasta tener la clave.
+
 ## Cómo levantar todo
 
 ```powershell
@@ -152,7 +159,20 @@ informe se ven como los de un local real. Si hiciera falta regenerarla:
 | Login del panel con `scrypt` de la biblioteca estándar; se descartó Supabase Auth para no sumar un tercero. | Decidido |
 | WeasyPrint queda fuera de `requirements.txt`: un build que falla es peor que un PDF que falta. | Decidido |
 
-## Pregunta abierta — preguntar apenas se retome
+## Pregunta abierta — ✅ RESPONDIDA
+
+Era el **monitoreo de errores**. Se confirmó y ya está: `sentry-sdk` integrado y apagado mientras
+`SENTRY_DSN` esté vacío. Falta solo que el usuario cree la cuenta gratuita y pegue la clave —
+está como C2 en `docs/pendientes-del-usuario.md`.
+
+## Decisiones esperando al usuario
+
+Siete, todas con recomendación escrita, en `docs/pendientes-del-usuario.md` (bloque B): enlace del
+informe con vencimiento, ocultar el contacto en el informe, texto del canal privado, borrado
+automático de contactos antiguos, responsable del tratamiento de datos, expiración de la sesión y
+logout por POST.
+
+## Nota histórica — la pregunta que había quedado abierta
 
 En el último mensaje el usuario pegó dos veces el texto del enlace del informe, y su **"ok hazlo"**
 quedó apuntando a eso, que contradice lo que había pedido una línea antes. Lo más probable es que

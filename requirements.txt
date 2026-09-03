@@ -17,6 +17,10 @@ tzdata>=2024.1
 a2wsgi>=1.10,<2.0
 qrcode[pil]>=7.4,<8.0
 httpx>=0.27,<1.0
+# Monitoreo de errores. Inerte mientras SENTRY_DSN esté vacío, que es el
+# estado por defecto: se instala igual para que encenderlo sea solo pegar
+# la clave en el hosting, sin un despliegue nuevo.
+sentry-sdk>=2.0,<3.0
 
 # WeasyPrint (PDF) queda deliberadamente FUERA de este archivo: necesita
 # librerías nativas de GTK que no están garantizadas en el hosting, y un build

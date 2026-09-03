@@ -143,6 +143,32 @@ class TestCanalPrivado:
 
         assert metrics.funnel(metrics.load_taps(negocio.id))["clicks"] == 0
 
+    def test_la_pagina_de_gracias_ofrece_google_por_la_ruta_que_cuenta(self, negocio, visitante):
+        """El botón de la página de gracias tiene que pasar por /go. Enlazando
+        directo a Google, esta conversión no se registra y el informe del cliente
+        muestra menos reseñas de las que su placa realmente generó."""
+        telefono = visitante()
+        telefono.get(f"/r/{negocio.mesa}")
+
+        html = telefono.post(f"/r/{negocio.mesa}/feedback", data={"message": "algo"}).text
+
+        assert f'href="/r/{negocio.mesa}/go"' in html
+        assert negocio.google_url not in html, "no debe enlazar directo a Google"
+
+    def test_quien_se_queja_y_luego_va_a_google_si_cuenta(self, negocio, visitante):
+        """El caso que más vale medir: tuvo un problema, lo dijo en privado y aun
+        así fue a dejar su reseña."""
+        telefono = visitante()
+        telefono.get(f"/r/{negocio.mesa}")
+        telefono.post(f"/r/{negocio.mesa}/feedback", data={"message": "la espera fue larga"})
+
+        telefono.get(f"/r/{negocio.mesa}/go", follow_redirects=False)
+
+        resultado = metrics.funnel(metrics.load_taps(negocio.id))
+        assert resultado["clicks"] == 1
+        assert resultado["visits"] == 1
+        assert resultado["conversion"] == 100.0
+
 class TestLasAlertasNuncaRompenElFlujo:
     """La ruta que genera ingresos no puede depender de la que da comodidad.
     Un fallo avisando por Telegram no puede impedir que el cliente deje su
@@ -202,3 +228,84 @@ class TestLasAlertasNuncaRompenElFlujo:
         assert respuesta.status_code == 200
         with SessionLocal() as db:
             assert db.scalars(select(Feedback)).all()
+
+
+class TestLimitesDeLaBaseDeDatos:
+    """SQLite ignora el largo declarado de una columna; Postgres lo aplica.
+
+    Sin recortar al escribir, un texto largo pasa en desarrollo y revienta con un
+    error 500 en producción, justo cuando un cliente acaba de escribir su queja
+    parado en el mostrador. Esta clase corre en los dos motores (ver
+    TEST_DATABASE_URL en conftest) y en Postgres falla si se quita el recorte.
+    """
+
+    def test_un_mensaje_larguisimo_no_rompe(self, negocio, visitante):
+        telefono = visitante()
+        telefono.get(f"/r/{negocio.mesa}")
+
+        respuesta = telefono.post(f"/r/{negocio.mesa}/feedback", data={"message": "a" * 3000})
+
+        assert respuesta.status_code == 200
+        with SessionLocal() as db:
+            guardado = db.scalars(select(Feedback)).one()
+        assert len(guardado.message) == 2000
+
+    def test_un_contacto_larguisimo_no_rompe(self, negocio, visitante):
+        telefono = visitante()
+        telefono.get(f"/r/{negocio.mesa}")
+
+        respuesta = telefono.post(
+            f"/r/{negocio.mesa}/feedback",
+            data={"contact": "b" * 400, "message": "algo"},
+        )
+
+        assert respuesta.status_code == 200
+        with SessionLocal() as db:
+            assert len(db.scalars(select(Feedback)).one().contact) == 255
+
+    def test_un_user_agent_larguisimo_no_rompe_la_landing(self, negocio, visitante):
+        """Algunos navegadores embebidos en apps mandan user-agents enormes. Si
+        no se recortara, ese teléfono no podría ni abrir la página."""
+        telefono = visitante()
+        telefono.headers["user-agent"] = "Mozilla/5.0 " + "X" * 700
+
+        respuesta = telefono.get(f"/r/{negocio.mesa}")
+
+        assert respuesta.status_code == 200
+        with SessionLocal() as db:
+            assert len(db.scalars(select(Tap)).first().user_agent) == 512
+
+    def test_una_calificacion_fuera_de_rango_se_descarta(self, negocio, visitante):
+        """El formulario solo ofrece 1 a 5, pero un POST a mano puede mandar
+        cualquier cosa y ese número termina en el informe del cliente."""
+        telefono = visitante()
+        telefono.get(f"/r/{negocio.mesa}")
+
+        telefono.post(f"/r/{negocio.mesa}/feedback", data={"rating": "9", "message": "hola"})
+
+        with SessionLocal() as db:
+            assert db.scalars(select(Feedback)).one().rating is None
+
+
+class TestFiltroDeBots:
+    def test_un_telefono_cubot_no_es_un_bot(self, negocio, visitante):
+        """Cubot es una marca de Android barato que se vende en Chile y su
+        user-agent contiene "bot". Descartar a un cliente real es peor que dejar
+        pasar un bot: es una reseña que el negocio pagó por conseguir y que nunca
+        va a aparecer en su informe."""
+        telefono = visitante()
+        telefono.headers["user-agent"] = (
+            "Mozilla/5.0 (Linux; Android 12; CUBOT NOTE 20) AppleWebKit/537.36 Chrome/104.0 Mobile Safari/537.36"
+        )
+
+        telefono.get(f"/r/{negocio.mesa}")
+
+        assert metrics.funnel(metrics.load_taps(negocio.id))["visits"] == 1
+
+    def test_los_bots_de_verdad_siguen_filtrados(self, negocio, visitante):
+        bot = visitante()
+        bot.headers["user-agent"] = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+
+        bot.get(f"/r/{negocio.mesa}")
+
+        assert metrics.funnel(metrics.load_taps(negocio.id))["visits"] == 0

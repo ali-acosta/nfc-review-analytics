@@ -1,5 +1,6 @@
 """Entrada y salida del panel del comercio."""
 
+import secrets
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -15,6 +16,13 @@ from app.services.ratelimit import client_ip, login_limiter
 
 router = APIRouter(prefix="/panel")
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / "templates"))
+
+# Hash señuelo, calculado una vez al importar. Sirve para que un correo que no
+# existe cueste lo mismo que uno que sí: sin esto, el `or` corta antes de llegar
+# a scrypt y la respuesta vuelve decenas de milisegundos más rápido, lo que
+# permite averiguar qué comercios son clientes con solo cronometrar. El mensaje
+# único de error no sirve de nada si el reloj lo delata.
+_HASH_SENUELO = hash_password(secrets.token_urlsafe(16))
 
 
 @router.get("/login", response_class=HTMLResponse)
@@ -50,9 +58,16 @@ def login(
     email = email.strip().lower()
     business = db.scalar(select(Business).where(func.lower(Business.login_email) == email))
 
+    # Se verifica siempre, contra el hash real o contra el señuelo, para que el
+    # tiempo de respuesta no distinga un correo que existe de uno que no. Un
+    # negocio sin contraseña asignada tampoco puede entrar, pero paga el mismo
+    # costo de cómputo que el resto.
+    hash_a_probar = business.password_hash if (business and business.password_hash) else _HASH_SENUELO
+    clave_correcta = verify_password(password, hash_a_probar)
+
     # Un solo mensaje para "no existe" y "contraseña incorrecta": distinguirlos
     # permitiría averiguar qué comercios son clientes.
-    if business is None or not verify_password(password, business.password_hash):
+    if business is None or not business.password_hash or not clave_correcta:
         return templates.TemplateResponse(
             request,
             "login.html",

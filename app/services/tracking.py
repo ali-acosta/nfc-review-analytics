@@ -35,10 +35,21 @@ _BOT_MARKERS = (
 )
 
 
+# Teléfonos reales cuyo user-agent contiene por casualidad uno de los marcadores
+# de arriba. Se revisan ANTES: descartar a un cliente de verdad es peor que dejar
+# pasar un bot, porque el cliente descartado es una reseña que el negocio pagó por
+# conseguir y que nunca aparecerá en su informe.
+#
+# Cubot es una marca de Android barato que se vende en Chile y contiene "bot".
+_NO_SON_BOTS = ("cubot",)
+
+
 def is_bot(user_agent: str) -> bool:
     ua = (user_agent or "").lower()
     if not ua:
         return True  # a real phone browser always sends one
+    if any(marca in ua for marca in _NO_SON_BOTS):
+        return False
     return any(marker in ua for marker in _BOT_MARKERS)
 
 

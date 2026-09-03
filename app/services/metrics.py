@@ -11,7 +11,7 @@ Rules encoded here, and nowhere else:
   · time is bucketed in the business's local timezone, never in UTC.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -40,35 +40,70 @@ def _to_local(series: pd.Series) -> pd.Series:
     return utc.dt.tz_convert(ZoneInfo(settings.timezone)).dt.tz_localize(None)
 
 
-def load_taps(business_id: int) -> pd.DataFrame:
+def _a_utc(local_sin_zona: datetime) -> datetime:
+    """Un instante en hora local del negocio, expresado en UTC.
+
+    Los límites de período se piensan y se escriben en hora local (el 1 de agosto
+    a las 00:00 *en Chile*), pero en la base están guardados en UTC. Esta es la
+    traducción que permite filtrar en SQL sin cambiar de criterio: el corte sigue
+    siendo el mismo que usa el resto del sistema.
+    """
+    return local_sin_zona.replace(tzinfo=ZoneInfo(settings.timezone)).astimezone(timezone.utc)
+
+
+def load_taps(
+    business_id: int, start: datetime | None = None, end: datetime | None = None
+) -> pd.DataFrame:
+    """Eventos del negocio, opcionalmente acotados a un período en hora local.
+
+    Filtrar en SQL y no en pandas no es una optimización prematura: el panel
+    recarga en cada refresco y por cada pestaña abierta, así que sin el filtro un
+    local con un año de historia mueve cientos de miles de filas cada vez, en una
+    instancia gratuita. `in_period` se mantiene por si alguien pasa un DataFrame
+    ya cargado.
+    """
+    query = (
+        select(Tap.created_at, Tap.session_id, Tap.outcome, Placement.label)
+        .join(Placement, Tap.placement_id == Placement.id)
+        .where(Tap.business_id == business_id, Tap.is_bot.is_(False))
+    )
+    if start is not None:
+        query = query.where(Tap.created_at >= _a_utc(start))
+    if end is not None:
+        query = query.where(Tap.created_at < _a_utc(end))
+
     with SessionLocal() as db:
-        rows = db.execute(
-            select(Tap.created_at, Tap.session_id, Tap.outcome, Placement.label)
-            .join(Placement, Tap.placement_id == Placement.id)
-            .where(Tap.business_id == business_id, Tap.is_bot.is_(False))
-        ).all()
+        rows = db.execute(query).all()
     df = pd.DataFrame(rows, columns=TAP_COLUMNS)
     if not df.empty:
         df["created_at"] = _to_local(df["created_at"])
     return df
 
 
-def load_feedback(business_id: int) -> pd.DataFrame:
+def load_feedback(
+    business_id: int, start: datetime | None = None, end: datetime | None = None
+) -> pd.DataFrame:
+    query = (
+        select(
+            Feedback.id,
+            Feedback.created_at,
+            Feedback.rating,
+            Feedback.contact,
+            Feedback.message,
+            Placement.label,
+            Feedback.resolved_at,
+        )
+        .join(Placement, Feedback.placement_id == Placement.id)
+        .where(Feedback.business_id == business_id)
+        .order_by(Feedback.created_at.desc())
+    )
+    if start is not None:
+        query = query.where(Feedback.created_at >= _a_utc(start))
+    if end is not None:
+        query = query.where(Feedback.created_at < _a_utc(end))
+
     with SessionLocal() as db:
-        rows = db.execute(
-            select(
-                Feedback.id,
-                Feedback.created_at,
-                Feedback.rating,
-                Feedback.contact,
-                Feedback.message,
-                Placement.label,
-                Feedback.resolved_at,
-            )
-            .join(Placement, Feedback.placement_id == Placement.id)
-            .where(Feedback.business_id == business_id)
-            .order_by(Feedback.created_at.desc())
-        ).all()
+        rows = db.execute(query).all()
     df = pd.DataFrame(rows, columns=FEEDBACK_COLUMNS)
     if not df.empty:
         # Ambas fechas en hora local: mezclar husos dentro de la misma tabla

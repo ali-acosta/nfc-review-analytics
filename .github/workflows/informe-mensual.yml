@@ -5,8 +5,8 @@
 # para instalar las librerías nativas que WeasyPrint necesita, así el PDF se
 # puede adjuntar aunque el servidor de la app no pueda generarlo.
 #
-# Requiere configurar en Settings → Secrets: DATABASE_URL, BASE_URL y
-# TELEGRAM_BOT_TOKEN. Con la base en SQLite esto no funciona: necesita el
+# Requiere configurar en Settings → Secrets: DATABASE_URL, BASE_URL,
+# SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_FROM y, si se usa, TELEGRAM_BOT_TOKEN. Con la base en SQLite esto no funciona: necesita el
 # Postgres gestionado, que es accesible desde fuera del servidor.
 
 name: Informe mensual
@@ -50,6 +50,14 @@ jobs:
           BASE_URL: ${{ secrets.BASE_URL }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # El correo es el canal principal: un dueño de pyme lo revisa a diario y
+          # puede no tener Telegram. Sin estas cuatro, send_email se saltaba el
+          # envío en silencio y el job terminaba en rojo para cada cliente que
+          # solo tuviera correo.
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
         run: |
           python -m scripts.send_reports \
             ${{ inputs.mes && format('--mes {0}', inputs.mes) || '' }} \

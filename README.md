@@ -21,8 +21,10 @@ el comercio. Construido con herramientas open source y capas gratuitas.
 - **Informe mensual** (`/informe/{token}`): KPIs con comparación contra el mes anterior,
   rendimiento por soporte, visitas por día y el detalle de las quejas recibidas. Listo para
   imprimir o enviar. Es la pieza que sostiene la suscripción.
-- **Alertas por Telegram** (opcional): cada comentario privado dispara una notificación.
-  Si no está configurado, la app funciona igual.
+- **Alertas por correo y/o Telegram** (opcional): cada comentario privado dispara una
+  notificación por los canales que el negocio tenga configurados. El correo suele importar
+  más: un dueño de pyme lo revisa a diario y puede no tener Telegram. Si no hay ninguno
+  configurado, la app funciona igual.
 - **QR de demo**: mismo link que iría en el chip, para probar el flujo real con un celular.
 
 ## Cómo correrlo
@@ -168,7 +170,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-149 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
+176 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
 fechas se agrupen en hora local del negocio, y que nadie reintroduzca el filtrado de reseñas
 que viola las políticas de Google. Corren solos en cada push.
 
@@ -197,3 +199,13 @@ arranque en frío): sirve para demos pero **no** para producción — con el pri
 hay que pasar a una instancia siempre encendida (~$7/mes, que un cliente cubre tres veces).
 Y `BASE_URL` define la URL que va en los QR: si se imprimen placas con el subdominio de
 onrender.com y luego se migra, esas placas mueren. Ver [ROADMAP.md](ROADMAP.md).
+
+## Documentación
+
+- [docs/revision-tecnica-2026-09-03.md](docs/revision-tecnica-2026-09-03.md) — revisión técnica
+  completa: hallazgos con su corrección y su test, lo que está bien y no hay que "arreglar",
+  el plan de trabajo y los próximos desarrollos.
+- [docs/pendientes-del-usuario.md](docs/pendientes-del-usuario.md) — todo lo que requiere
+  intervención manual: pruebas, decisiones, cuentas y compras.
+- [docs/ruta-de-pruebas-manuales.md](docs/ruta-de-pruebas-manuales.md) — cómo probar el producto
+  a mano, paso a paso.

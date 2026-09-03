@@ -10,6 +10,7 @@ varias instancias, cada una llevará su propia cuenta y el límite efectivo ser�
 el configurado por instancia: aceptable, pero hay que saberlo.
 """
 
+import ipaddress
 import logging
 import time
 from collections import defaultdict, deque
@@ -56,6 +57,14 @@ class RateLimiter:
             del self._hits[k]
 
 
+def _es_publica(ip: str) -> bool:
+    """True si es una IP de internet, no una privada ni un salto interno."""
+    try:
+        return ipaddress.ip_address(ip).is_global
+    except ValueError:
+        return False
+
+
 def client_ip(request) -> str:
     """IP del cliente, respetando el proxy del hosting.
 
@@ -63,10 +72,25 @@ def client_ip(request) -> str:
     siempre la IP del proxy: sin mirar X-Forwarded-For, todos los visitantes
     compartirían una única clave y el límite se aplicaría a todo el tráfico
     junto.
+
+    Se lee de DERECHA a IZQUIERDA y no al revés. Render no borra la cabecera que
+    llega del cliente, solo le agrega la IP real al final: si se tomara la
+    primera, cualquiera podría mandar una X-Forwarded-For inventada y distinta en
+    cada petición para no compartir nunca clave con la anterior, dejando sin
+    efecto tanto el límite de visitas como el de fuerza bruta del login. Lo que
+    agregó el proxy propio está al final; lo anterior lo pudo escribir el cliente
+    y no se le cree. Las privadas se saltan para tolerar saltos internos del
+    hosting.
+
+    Si algún día el hosting agregara un salto interno con IP pública, todos los
+    visitantes caerían en una sola clave: degrada la métrica, pero no se puede
+    falsificar. Ese es el fallo seguro.
     """
     reenviada = request.headers.get("x-forwarded-for", "")
     if reenviada:
-        return reenviada.split(",")[0].strip()
+        for ip in reversed([parte.strip() for parte in reenviada.split(",")]):
+            if _es_publica(ip):
+                return ip
     return request.client.host if request.client else "desconocida"
 
 

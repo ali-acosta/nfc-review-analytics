@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
   <title>Gracias — {{ business.name }}</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
@@ -13,7 +14,9 @@
       Tu comentario fue enviado directamente al equipo de {{ business.name }}.
       Si más adelante quieres dejar también tu reseña pública en Google, siempre puedes hacerlo aquí:
     </p>
-    <a class="btn btn-primary" href="{{ business.google_review_url }}">Dejar reseña en Google</a>
+    <!-- Pasa por /go, no directo a Google: si no, esta conversión no se cuenta y
+         el cliente ve en su informe menos reseñas de las que realmente generó. -->
+    <a class="btn btn-primary" href="/r/{{ placement.token }}/go">Dejar reseña en Google</a>
   </main>
 </body>
 </html>

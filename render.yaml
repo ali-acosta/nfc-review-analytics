@@ -5,8 +5,16 @@
 # no dejar secretos ni la cadena de conexión escritos en el repositorio.
 #
 # Antes del primer despliegue:
-#   1. Crear el Postgres gratuito en Supabase o Neon y copiar su cadena de
-#      conexión (formato postgresql+psycopg://usuario:clave@host:5432/base).
+#   1. Crear el Postgres gratuito en NEON y copiar su cadena de conexión
+#      (formato postgresql+psycopg://usuario:clave@host:5432/base).
+#
+#      Neon y no Supabase: el plan gratuito de Supabase PAUSA el proyecto tras
+#      unos días sin actividad de base de datos y hay que reanudarlo a mano. Con
+#      cero clientes durante la validación, eso pasa seguro; con un cliente, basta
+#      un feriado largo. Un cliente que toca la placa y no carga nada es
+#      exactamente lo que este producto no puede permitirse. Neon también suspende
+#      el cómputo, pero despierta solo en torno a un segundo.
+#      (Verificar las condiciones vigentes al decidir: los free tiers cambian.)
 #   2. Definir BASE_URL con el dominio DEFINITIVO. Si se imprimen placas con la
 #      URL de onrender.com y después se migra, esas placas mueren.
 
@@ -33,7 +41,20 @@ services:
         generateValue: true
       - key: BASE_URL
         sync: false
+      # Vacío = monitoreo apagado. Se pega el DSN cuando exista la cuenta.
+      - key: SENTRY_DSN
+        sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_CHAT_ID
+        sync: false
+      # Correo de las alertas de queja, que es lo que sostiene la suscripción.
+      # Sin estas, notify() no tiene por dónde avisarle al dueño salvo Telegram.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
         sync: false

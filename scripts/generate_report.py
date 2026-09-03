@@ -23,7 +23,11 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "informes"
 def main() -> None:
     parser = argparse.ArgumentParser(description="Genera el informe mensual de un negocio.")
     parser.add_argument("--token", help="dashboard_token del negocio. Si se omite, usa el primero que exista.")
-    parser.add_argument("--mes", help="Período en formato AAAA-MM. Por defecto, el mes actual.")
+    parser.add_argument(
+        "--mes",
+        help="Período en formato AAAA-MM. Por defecto, el último mes COMPLETO "
+             "(que es lo que significa un informe mensual).",
+    )
     parser.add_argument("--pdf", action="store_true", help="Genera PDF en vez de HTML (requiere WeasyPrint).")
     args = parser.parse_args()
 

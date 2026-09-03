@@ -59,23 +59,66 @@ class TestElLimitador:
         assert limiter.allow("ip") is True
 
 
+def _peticion(xff="", host="10.0.0.1"):
+    return type(
+        "Req",
+        (),
+        {"headers": {"x-forwarded-for": xff} if xff else {}, "client": type("C", (), {"host": host})()},
+    )()
+
+
 class TestIpDelCliente:
     def test_usa_x_forwarded_for_detras_del_proxy(self):
         """El hosting termina TLS por delante: sin mirar esta cabecera, todos
         los visitantes compartirían la IP del proxy y una sola clave."""
-
-        class Req:
-            headers = {"x-forwarded-for": "200.1.2.3, 10.0.0.1"}
-            client = type("C", (), {"host": "10.0.0.1"})()
-
-        assert client_ip(Req()) == "200.1.2.3"
+        assert client_ip(_peticion("200.1.2.3, 10.0.0.1")) == "200.1.2.3"
 
     def test_sin_proxy_usa_la_conexion(self):
-        class Req:
-            headers = {}
-            client = type("C", (), {"host": "190.5.5.5"})()
+        assert client_ip(_peticion(host="190.5.5.5")) == "190.5.5.5"
 
-        assert client_ip(Req()) == "190.5.5.5"
+    def test_ignora_lo_que_el_cliente_escribio_a_la_izquierda(self):
+        """Render no borra la cabecera que llega del cliente, solo le agrega la
+        IP real al final. Si se leyera la primera, bastaría con mandar una
+        inventada distinta en cada petición para no toparse nunca con el límite:
+        adiós protección de métricas y adiós freno a la fuerza bruta del login."""
+        assert client_ip(_peticion("6.6.6.6, 200.1.2.3")) == "200.1.2.3"
+
+    def test_salta_los_saltos_internos_privados(self):
+        assert client_ip(_peticion("6.6.6.6, 200.1.2.3, 10.0.0.1")) == "200.1.2.3"
+
+    def test_ignora_basura_en_la_cabecera(self):
+        """Una cabecera con texto que no es una IP no puede tumbar la petición."""
+        assert client_ip(_peticion("no-es-una-ip, 200.1.2.3")) == "200.1.2.3"
+        assert client_ip(_peticion("no-es-una-ip", host="190.5.5.5")) == "190.5.5.5"
+
+
+class TestNoSeEsquivaElLimiteFalsificandoLaCabecera:
+    def test_el_login_sigue_bloqueando_con_x_forwarded_for_distinta(self, negocio):
+        """El ataque real: el mismo script probando contraseñas, cambiando la
+        primera IP de la cabecera en cada intento. La IP que agrega el proxy es
+        siempre la misma, así que el límite tiene que seguir contando."""
+        with SessionLocal() as db:
+            business = db.get(Business, negocio.id)
+            business.login_email = "dueno@local.cl"
+            business.password_hash = hash_password("correcta")
+            db.commit()
+
+        login_limiter.max_hits = 3
+        try:
+            with TestClient(app) as c:
+                codigos = [
+                    c.post(
+                        "/panel/login",
+                        data={"email": "dueno@local.cl", "password": "mala"},
+                        headers={"x-forwarded-for": f"6.6.6.{i}, 200.1.2.3"},
+                    ).status_code
+                    for i in range(5)
+                ]
+        finally:
+            login_limiter.max_hits = 8
+
+        assert codigos[:3] == [401, 401, 401]
+        assert codigos[3:] == [429, 429], "cambiar la X-Forwarded-For no puede saltarse el límite"
 
 
 class TestVisitasPublicas:
@@ -183,3 +226,35 @@ class TestLogin:
 
         assert ok.status_code == 302
         assert siguientes[:3] == [401, 401, 401]
+
+
+class TestElLimiteNoLeQuitaConversionesAlCliente:
+    """La degradación tiene que ser neutra. Como el límite es por IP y en un local
+    todos comparten la del WiFi, si la visita se cuenta y el click siguiente se
+    descarta, el límite solo puede BAJAR la conversión del cliente, justo en su
+    mejor momento: un almuerzo lleno."""
+
+    def test_la_conversion_se_cuenta_aunque_la_ip_este_topada(self, negocio, visitante):
+        public_limiter.max_hits = 1
+        try:
+            telefono = visitante()
+            telefono.get(f"/r/{negocio.mesa}")  # consume el único cupo
+            telefono.get(f"/r/{negocio.mesa}/go", follow_redirects=False)
+        finally:
+            public_limiter.max_hits = 60
+
+        resultado = metrics.funnel(metrics.load_taps(negocio.id))
+        assert resultado["visits"] == 1
+        assert resultado["clicks"] == 1, "un visitante real con su visita ya registrada debe convertir"
+
+    def test_un_script_sin_visita_previa_sigue_topando(self, negocio, visitante):
+        """La excepción se apoya en tener una visita previa de esa sesión. Quien
+        borra cookies entre peticiones nunca la tiene."""
+        public_limiter.max_hits = 1
+        try:
+            visitante().get(f"/r/{negocio.mesa}")  # consume el cupo
+            visitante().get(f"/r/{negocio.mesa}/go", follow_redirects=False)  # sesión nueva
+        finally:
+            public_limiter.max_hits = 60
+
+        assert metrics.funnel(metrics.load_taps(negocio.id))["clicks"] == 0
