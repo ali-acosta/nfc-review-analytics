@@ -9,6 +9,7 @@ Reemplaza el tener que escribir Python a mano para dar de alta a alguien.
     python -m scripts.new_client --listar               # ver clientes y sus tokens
     python -m scripts.new_client --agregar TOKEN --placas "Mesa 7,Mesa 8"
     python -m scripts.new_client --rotar-token TOKEN     # invalida el enlace del informe
+    python -m scripts.new_client --editar TOKEN --google-url "https://g.page/r/.../review"
 """
 
 import argparse
@@ -216,6 +217,66 @@ def rotar_token(token: str) -> None:
         print("\n    Mándaselo al dueño: el enlace anterior quedó invalidado.\n")
 
 
+def editar(token: str, nombre: str, google_url: str, email: str, telegram: str) -> None:
+    """Cambia los datos de un cliente ya creado.
+
+    Existe porque lo único que no se podía hacer sin escribir Python a mano era
+    justamente lo que más se necesita: corregir el enlace de reseñas. Un cliente
+    se da de alta antes de tener su link definitivo de Google, o el dueño rehace
+    su ficha y el link cambia; sin esto, cada corrección era un snippet contra la
+    base, que es la clase de operación en la que se borra lo que no se quería.
+
+    No toca las placas ni sus tokens: eso está grabado en un chip pegado a una
+    mesa y no puede cambiar nunca.
+    """
+    campos = {"nombre": nombre, "google_url": google_url, "email": email, "telegram": telegram}
+    if not any(campos.values()):
+        sys.exit(
+            "Indica al menos un campo a cambiar:\n"
+            "  --editar TOKEN --google-url \"https://g.page/r/.../review\"\n"
+            "  --editar TOKEN --nombre \"Nombre nuevo\" --email dueno@correo.cl"
+        )
+
+    if google_url:
+        _check_google_url(google_url)
+
+    with SessionLocal() as db:
+        business = db.scalar(select(Business).where(Business.dashboard_token == token))
+        if business is None:
+            sys.exit(f"No existe un cliente con el token '{token}'. Usa --listar para verlos.")
+
+        cambios = []
+        if nombre:
+            cambios.append(("Nombre", business.name, nombre))
+            business.name = nombre
+        if google_url:
+            cambios.append(("Link de Google", business.google_review_url, google_url))
+            business.google_review_url = google_url
+        if email:
+            cambios.append(("Correo de alertas", business.alert_email or "(ninguno)", email))
+            business.alert_email = email
+            # El correo del panel se deja como está: cambiarlo sin avisar dejaría
+            # al dueño sin poder entrar con la credencial que le entregamos.
+            if not business.login_email:
+                business.login_email = email
+                cambios.append(("Correo del panel", "(ninguno)", email))
+        if telegram:
+            cambios.append(("Telegram", business.telegram_chat_id or "(ninguno)", telegram))
+            business.telegram_chat_id = telegram
+
+        db.commit()
+        db.refresh(business)
+
+        print(f"\n{LINE}\n  {business.name}\n{LINE}\n")
+        for etiqueta, antes, ahora in cambios:
+            print(f"  {etiqueta}:")
+            print(f"    antes:  {antes}")
+            print(f"    ahora:  {ahora}\n")
+
+        if not business.alert_email and not business.telegram_chat_id:
+            print("  [!] Sigue sin canal de aviso: no recibirá las alertas de queja.\n")
+
+
 def interactivo() -> tuple[str, str, list[str], str, str]:
     print(f"\n{LINE}\n  ALTA DE CLIENTE NUEVO\n{LINE}\n")
     nombre = _ask("  Nombre del negocio: ")
@@ -255,6 +316,11 @@ def main() -> None:
         metavar="TOKEN",
         help="Genera un enlace de informe nuevo e invalida el anterior.",
     )
+    parser.add_argument(
+        "--editar",
+        metavar="TOKEN",
+        help="Cambia datos de un cliente existente (usa --nombre, --google-url, --email, --telegram).",
+    )
     args = parser.parse_args()
 
     init_db()
@@ -267,6 +333,9 @@ def main() -> None:
 
     if args.rotar_token:
         return rotar_token(args.rotar_token)
+
+    if args.editar:
+        return editar(args.editar, args.nombre or "", args.google_url or "", args.email, args.telegram)
 
     labels = [p.strip() for p in args.placas.split(",") if p.strip()] if args.placas else []
 

@@ -20,7 +20,7 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, 176 tests. Demo panel:
+report with automatic delivery, client onboarding, migrations, 189 tests. Demo panel:
 `demo@cafe.cl` / `demo1234`. Nothing has been deployed or published — the user has not bought the
 domain yet, and printing a plaque with a temporary URL is the one irreversible mistake to avoid.
 
@@ -83,13 +83,25 @@ python -m scripts.generate_report --mes 2026-08
 
 # Onboard a real client: creates the business, its placements and their QRs
 python -m scripts.new_client              # interactive; --listar recovers lost tokens
+
+# Printable sheet to hand to whoever manufactures the plaques (QRs inlined as
+# data: URIs, so the file works standalone once emailed)
+python -m scripts.qr_sheet --token TOKEN
+
 uvicorn app.main:app --reload
 ```
 
 `scripts/new_client.py` is the operator tool. `--listar` matters because dashboard tokens are
 random and printed only once — losing one means losing access to that client's panel.
-`--agregar TOKEN --placas "Mesa 7"` adds supports later. There is no web admin UI yet; editing an
-existing `google_review_url` is still a one-off snippet against `app.database.SessionLocal`.
+`--agregar TOKEN --placas "Mesa 7"` adds supports later, `--editar TOKEN --google-url ...` fixes a
+client's details (the review link changes often enough that hand-written snippets against the DB
+were the riskiest routine operation), and `--rotar-token TOKEN` issues a fresh report link and kills
+the old one. There is no web admin UI yet.
+
+`scripts/qr_sheet.py` renders the manufacturing sheet. Its `es_apta_para_imprimir` assumes a URL is
+provisional unless proven otherwise — https, no explicit port, not a dev or temporary host — because
+printing a plaque with a temporary URL is the one irreversible mistake in the project, so an
+unrecognised URL must trip the warning rather than pass silently.
 
 **Any script that prints to a Windows console must reconfigure stdout to UTF-8** (see the top of
 `scripts/new_client.py`). The default cp1252 console raises `UnicodeEncodeError` on box-drawing
@@ -98,7 +110,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 176 tests
+pytest -q                       # 189 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 

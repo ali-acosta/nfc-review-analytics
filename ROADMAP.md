@@ -61,8 +61,11 @@ solo, no genera retención.
 ### Operación — Alta de clientes · ✅ Resuelto
 `python -m scripts.new_client` crea el negocio, sus placas y sus QR, y entrega los enlaces del
 panel y del informe. `--listar` recupera tokens perdidos (son aleatorios y se imprimen una sola
-vez), `--agregar` suma placas después. Pendiente: un panel web de administración, y poder editar
-el `google_review_url` de un cliente ya creado sin escribir Python.
+vez), `--agregar` suma placas después, `--editar` corrige los datos de un cliente ya creado
+(incluido su `google_review_url`, que era lo único frecuente que obligaba a escribir Python contra
+la base) y `--rotar-token` invalida el enlace del informe. `python -m scripts.qr_sheet` genera la
+hoja de placas para mandarle a quien las fabrique, con un aviso de NO IMPRIMIR mientras la URL no
+sea definitiva. Pendiente: un panel web de administración.
 
 ### Módulo 2 — Sincronización con Google Business Profile · ⏳ Importa más de lo que parece
 Hoy se pueden contar clicks hacia Google, pero **no** reseñas efectivamente publicadas. El
@@ -78,7 +81,7 @@ perder su historial. Ahora hay Alembic (`alembic upgrade head`, aplicado solo en
 desde `render.yaml`) y un test que falla si los modelos y las migraciones se desincronizan.
 Ya se estrenó agregando la columna del correo de alertas, con los 1915 taps de demo intactos.
 
-### Calidad — Tests · ✅ 176 tests
+### Calidad — Tests · ✅ 189 tests
 `pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push, sobre SQLite y Postgres
 (`.github/workflows/tests.yml`). Protegen sobre todo la métrica de conversión —que ya se rompió
 una vez en silencio— y la regla de no reintroducir el filtrado de reseñas.
@@ -206,10 +209,10 @@ y para entonces ya habría ingresos que lo cubren. Agregar un canal es tocar sol
 
 ## Lo que se puede hacer sin depender del usuario
 
-- **Panel web de administración**: editar clientes, su `google_review_url` y sus placas sin CLI.
-  Hoy `scripts/new_client.py` cubre el alta, pero editar sigue requiriendo Python a mano.
-- **Hoja de impresión de QR**: una plantilla lista para imprimir y cortar, para la producción
-  física de las placas.
+- **Panel web de administración**: hacer desde el navegador lo que hoy hace la CLI. Ya no es
+  urgente: `--editar` cubre la corrección de datos, que era lo que dolía. Se justifica pasados los
+  diez clientes o con un segundo operador.
+- ~~Hoja de impresión de QR~~ ✅ hecha: `python -m scripts.qr_sheet --token TOKEN`.
 - **Módulo 3 (IA de sentimiento)**: local y gratis con `pysentimiento`/VADER. Sigue siendo la
   prioridad más baja — con 20 reseñas al mes nadie necesita NLP.
 - **Módulo 2 (API de Google Business Profile)**: importa más, pero necesita credenciales OAuth y

@@ -6,35 +6,52 @@ comporta como dice "Qué deberías ver", anótalo (una foto de pantalla sirve) y
 
 ## Antes de empezar
 
-- El servidor ya está corriendo en tu computador, escuchando en la red local:
-  `http://10.207.55.203:8000`. Si lo cerraste o reiniciaste el computador, levántalo de nuevo con:
-  ```powershell
-  .venv\Scripts\Activate.ps1
-  uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-  ```
-  El `--host 0.0.0.0` es necesario para que el celular lo vea; con solo `--reload` (como dice
-  el README) solo tu propio computador puede entrar.
-- Tu celular tiene que estar en **la misma red WiFi** que el computador.
-- Si el celular no logra cargar nada más abajo, lo más probable es el firewall de Windows
-  bloqueando conexiones entrantes al puerto 8000. Revisa que el firewall pregunte y permitas el
-  acceso, o busca "Firewall de Windows Defender" → "Permitir una aplicación" → agrega Python.
-- Dejé un archivo `.env` con `BASE_URL=http://10.207.55.203:8000` y regeneré los tres QR de las
-  placas de demo para que apunten ahí en vez de a `localhost` (que tu celular no puede alcanzar).
-  Esto es solo para esta sesión de pruebas. **Antes de imprimir cualquier placa real, `BASE_URL`
-  tiene que ser el dominio definitivo** — eso sigue bloqueado por comprar el dominio.
-- Datos de la demo: negocio "Café Demo", tres soportes (Mesa 5, Mesón de pago, Boleta), con
-  ~1900 visitas y 33 quejas repartidas en los últimos meses, para que el panel y el informe se
-  vean como los de un local real.
+**Las pruebas se hacen desde el navegador de este computador.** Se intentó desde el celular, pero
+la red no deja que el teléfono alcance al computador: el servidor responde bien y el QR es
+correcto, pero algo entre medio (el router o el equipo corporativo) bloquea la conexión entrante.
+No vale la pena pelear con eso ahora; la prueba en celular queda pendiente para cuando el
+proyecto viva en un equipo personal.
 
----
+El servidor ya está corriendo en `http://localhost:8000`. Si lo cerraste o reiniciaste el
+computador, levántalo de nuevo con:
 
-## Parte 1 — El flujo que vive un cliente (con tu celular)
+```powershell
+.venv\Scripts\Activate.ps1
+uvicorn app.main:app --reload
+```
+
+Todo apunta ahora a `localhost`, así que ya no importa a qué red te conectes.
+
+**Para probar la experiencia de celular sin celular**: abre las herramientas de desarrollador del
+navegador con F12 y activa la vista de dispositivo móvil (el ícono de teléfono, o Ctrl+Shift+M en
+Chrome y Edge). La landing está diseñada para pantallas de teléfono y así la ves como se verá.
+
+Datos de la demo: negocio "Café Demo", tres soportes (Mesa 5, Mesón de pago, Boleta), con ~1900
+visitas y 33 quejas repartidas en los últimos meses, para que el panel y el informe se vean como
+los de un local real.
+
+### Enlaces directos, para ir haciendo clic
+
+| Qué | Dirección |
+|---|---|
+| Landing "Mesa 5" | http://localhost:8000/r/ZTYFEMtc |
+| Landing "Mesón de pago" | http://localhost:8000/r/H1IwNJrX |
+| Landing "Boleta" | http://localhost:8000/r/Ygb-AOFn |
+| Código inexistente (debe dar 404) | http://localhost:8000/r/no-existe-esto |
+| Panel del dueño | http://localhost:8000/panel/login |
+| Informe mensual | http://localhost:8000/informe/4VB6_OoK |
+| Informe de un mes concreto | http://localhost:8000/informe/4VB6_OoK?mes=2026-08 |
+| Informe de un mes vacío | http://localhost:8000/informe/4VB6_OoK?mes=2026-01 |
+| PDF (debe dar un mensaje claro, no un error) | http://localhost:8000/informe/4VB6_OoK/pdf |
+
+Credenciales del panel: **demo@cafe.cl** / **demo1234**
+
+## Parte 1 — El flujo que vive un cliente
 
 Esto es lo más importante de probar primero: es literalmente el producto.
 
-1. **[ ] Escanea el QR de una placa con la cámara de tu celular.**
-   Ábrelo desde el computador: `qrcodes\ZTYFEMtc.png` (es la placa "Mesa 5"). O visita
-   directamente desde el celular: `http://10.207.55.203:8000/r/ZTYFEMtc`
+1. **[ ] Abre la landing de una placa:** http://localhost:8000/r/ZTYFEMtc (es "Mesa 5").
+   Activa antes la vista de móvil con F12, para verla como la vería un cliente.
    - Qué deberías ver: una página con el nombre "Café Demo", un botón grande "Dejar reseña en
      Google" y, más abajo, un enlace secundario "¿Tuviste un problema? Cuéntanos en privado".
    - Qué NO deberías ver: ningún selector de estrellas antes del botón de Google. Si lo ves, es
@@ -45,13 +62,13 @@ Esto es lo más importante de probar primero: es literalmente el producto.
      tenemos el link real de un negocio — ver "Bloqueado esperando al usuario" en el ROADMAP).
      Lo que importa probar es que redirige, no a dónde.
 
-3. **[ ] Vuelve atrás, escanea el mismo QR de nuevo y toca "Dejar reseña" varias veces seguidas.**
+3. **[ ] Vuelve atrás, recarga la misma landing y haz clic en "Dejar reseña" varias veces seguidas.**
    - Qué deberías ver: siempre te lleva a Google sin errores.
    - Lo que estás probando sin verlo: que recargar la página o tocar el botón dos veces no debe
      inflar las visitas ni las conversiones. Eso lo confirmamos después en el panel (paso 8).
 
-4. **[ ] Escanea el QR de otra placa distinta ("Mesón de pago": `H1IwNJrX`, o "Boleta":
-   `Ygb-AOFn`) y esta vez toca "¿Tuviste un problema? Cuéntanos en privado".**
+4. **[ ] Abre otra placa distinta** (http://localhost:8000/r/H1IwNJrX) **y esta vez haz clic en
+   "¿Tuviste un problema? Cuéntanos en privado".**
    - Qué deberías ver: se despliega un formulario con una calificación opcional (1 a 5, o "prefiero
      no decirlo"), un campo de contacto opcional, y un cuadro de texto.
    - **[ ] Envíalo con un mensaje cualquiera, con y sin calificación, con y sin contacto.**
@@ -61,13 +78,13 @@ Esto es lo más importante de probar primero: es literalmente el producto.
      encontramos roto en la revisión (no cuenta como conversión); confirmar que efectivamente no
      queda registrado es la prueba de que el hallazgo era real.
 
-5. **[ ] Prueba un código que no existe:** `http://10.207.55.203:8000/r/no-existe-esto`
+5. **[ ] Prueba un código que no existe:** `http://localhost:8000/r/no-existe-esto`
    - Qué deberías ver: una página de error 404, no una pantalla en blanco ni un error feo de
      servidor.
 
-## Parte 2 — El panel del dueño (puede ser desde el computador o el celular)
+## Parte 2 — El panel del dueño
 
-6. **[ ] Entra a `http://10.207.55.203:8000/panel/login`** con `demo@cafe.cl` / `demo1234`.
+6. **[ ] Entra a `http://localhost:8000/panel/login`** con `demo@cafe.cl` / `demo1234`.
    - Qué deberías ver: te lleva al panel con gráficos y números.
 
 7. **[ ] Antes de eso, prueba con la contraseña mala un par de veces.**
@@ -101,14 +118,14 @@ Esto es lo más importante de probar primero: es literalmente el producto.
 
 ## Parte 3 — El informe mensual
 
-13. **[ ] Visita `http://10.207.55.203:8000/informe/4VB6_OoK`** (ese es el "dashboard_token" del
+13. **[ ] Visita `http://localhost:8000/informe/4VB6_OoK`** (ese es el "dashboard_token" del
     negocio demo — es un enlace distinto al del panel, a propósito: este no pide contraseña,
     porque es el que se manda por correo).
     - Qué deberías ver: un informe con visitas, conversión, comparación contra el mes anterior,
       rendimiento por soporte y el detalle de las quejas del mes.
 
 14. **[ ] Prueba con un mes específico:**
-    `http://10.207.55.203:8000/informe/4VB6_OoK?mes=2026-08`
+    `http://localhost:8000/informe/4VB6_OoK?mes=2026-08`
     - Compara los números con lo que viste en el panel (paso 8). No van a coincidir porque miden
       períodos distintos — es esperado, no es un bug nuevo.
 
@@ -122,7 +139,7 @@ Esto es lo más importante de probar primero: es literalmente el producto.
       visitas por día.
 
 17. **[ ] Prueba también la ruta directa del PDF:**
-    `http://10.207.55.203:8000/informe/4VB6_OoK/pdf`
+    `http://localhost:8000/informe/4VB6_OoK/pdf`
     - Qué deberías ver: **no** un error de servidor. En tu Windows, un mensaje de texto claro
       explicando que WeasyPrint no está disponible ahí y las alternativas. Eso es correcto y
       esperado — confirmado que responde 501, no 500.
@@ -157,8 +174,8 @@ Esto simula lo que harías con un cliente real. Es un buen momento para ver si e
 22. **[ ] Intenta iniciar sesión con la contraseña mala 9 veces seguidas.**
     - Qué deberías ver: después de varios intentos, un mensaje de "demasiados intentos, espera
       unos minutos", incluso si la contraseña es correcta en el siguiente intento.
-23. **[ ] Prueba la landing desde el navegador de escritorio, no solo el celular** — confirma que
-    se ve bien en una pantalla ancha también, aunque está pensada para celular.
+23. **[ ] Prueba la landing en pantalla ancha y en vista de móvil (F12)** — tiene que verse bien
+    en las dos, aunque está pensada para celular.
 
 ---
 

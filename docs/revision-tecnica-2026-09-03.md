@@ -894,7 +894,7 @@ trabajo del usuario) y las decisiones B1 a B7 de `docs/pendientes-del-usuario.md
 
 En orden de valor para el negocio dividido por esfuerzo.
 
-### 9.1 · Editar un cliente sin escribir Python
+### 9.1 · Editar un cliente sin escribir Python · ✅ HECHO 2026-09-03
 
 Hoy `scripts/new_client.py` crea, lista, agrega placas y reinicia contraseñas, pero cambiar el
 `google_review_url` o el correo de un cliente existente exige un snippet contra
@@ -903,7 +903,7 @@ Hoy `scripts/new_client.py` crea, lista, agrega placas y reinicia contraseñas, 
 Una hora de trabajo, con test en `tests/test_operacion.py`. El panel web de administración se
 justifica cuando haya más de diez clientes.
 
-### 9.2 · Hoja de impresión de QR
+### 9.2 · Hoja de impresión de QR · ✅ HECHO 2026-09-03
 
 Para producir las placas hace falta imprimir los QR con su etiqueta y su URL corta. Un script
 `scripts/qr_sheet.py --token TOKEN` que genere un HTML A4 con CSS de impresión (la misma técnica
@@ -1021,3 +1021,4 @@ mediano; se justifica con más de diez clientes o con un segundo operador.
 | 2026-09-03 | Revisión inicial completa sobre el commit `4b702b5`. |
 | 2026-09-03 | Fase A completada: C1, C2, C3 y C4 corregidos y Postgres agregado a CI. 162 tests. |
 | 2026-09-03 | Fase B completada (I2, I3, I4, I8, M2, M3, M4, M6, M7, M8, M9, M10, M12, M14, I7.1) y fase C parcial (I1, M1). 176 tests. |
+| 2026-09-03 | Fase E: 9.1 (`--editar`) y 9.2 (hoja de placas). 189 tests. Panel e informe verificados coincidiendo con datos reales de la ronda de pruebas del usuario. |

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Placas — {{ business.name }}</title>
+  <style>
+    /* Hoja para imprimir y recortar. Mismo criterio que el informe: CSS de
+       impresión, sin JavaScript y con los QR embebidos como data: URI, para que
+       el archivo funcione igual abierto en un navegador, impreso a PDF o enviado
+       por correo a quien fabrique las placas. Un HTML que depende de que el
+       servidor siga vivo no sirve para mandárselo a un proveedor. */
+    @page { size: A4; margin: 12mm; }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Helvetica, Arial, sans-serif;
+      color: #1d2624;
+      background: #fff;
+    }
+
+    header {
+      border-bottom: 2pt solid #16607d;
+      padding-bottom: 8pt;
+      margin-bottom: 14pt;
+    }
+    h1 { font-size: 16pt; margin: 0 0 3pt; }
+    .meta { font-size: 8.5pt; color: #6b7a76; margin: 0; }
+
+    .aviso {
+      border: 1pt solid #b8563f;
+      border-left: 3pt solid #b8563f;
+      background: #fdf4f2;
+      padding: 7pt 10pt;
+      margin-bottom: 14pt;
+      font-size: 8.5pt;
+      color: #7d3a2c;
+    }
+    .aviso b { color: #b8563f; }
+
+    .grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8mm;
+    }
+
+    .placa {
+      width: 82mm;
+      border: 0.75pt dashed #9aa5a2;
+      border-radius: 3pt;
+      padding: 8mm 6mm;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+    .negocio { font-size: 11pt; font-weight: 600; margin: 0 0 2pt; }
+    .etiqueta {
+      font-size: 9pt;
+      color: #16607d;
+      font-weight: 600;
+      letter-spacing: .4pt;
+      text-transform: uppercase;
+      margin: 0 0 6pt;
+    }
+    .qr { width: 44mm; height: 44mm; display: block; margin: 0 auto 6pt; }
+    .llamada { font-size: 9.5pt; margin: 0 0 4pt; }
+    .url {
+      font-family: "Courier New", monospace;
+      font-size: 7.5pt;
+      color: #5c6b68;
+      word-break: break-all;
+      margin: 0;
+    }
+    .corte { font-size: 7pt; color: #9aa5a2; margin-top: 5pt; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>{{ business.name }} — placas para fabricar</h1>
+    <p class="meta">
+      {{ placements|length }} soporte{{ 's' if placements|length != 1 else '' }} ·
+      generado el {{ generado_el }}
+    </p>
+  </header>
+
+  {% if aviso_base_url %}
+  <div class="aviso">
+    <b>NO IMPRIMIR TODAVÍA.</b> Estas URLs apuntan a <code>{{ base_url }}</code>, que es una
+    dirección temporal. Una vez grabado el chip y pegada la placa, la URL no se puede cambiar
+    nunca más: si se imprime esto y luego cambia el dominio, todas las placas instaladas dejan de
+    funcionar. Configura <code>BASE_URL</code> con el dominio definitivo y vuelve a generar la hoja.
+  </div>
+  {% endif %}
+
+  <div class="grid">
+    {% for p in placements %}
+    <div class="placa">
+      <p class="negocio">{{ business.name }}</p>
+      <p class="etiqueta">{{ p.label }}</p>
+      <img class="qr" src="data:image/png;base64,{{ p.qr_base64 }}" alt="Código QR de {{ p.label }}" />
+      <p class="llamada">¿Cómo estuvo tu visita?<br />Escanea y déjanos tu reseña.</p>
+      <p class="url">{{ p.url }}</p>
+      <p class="corte">Grabar este mismo enlace en el chip NFC · recortar por la línea</p>
+    </div>
+    {% endfor %}
+  </div>
+
+</body>
+</html>

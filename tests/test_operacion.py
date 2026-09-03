@@ -181,3 +181,169 @@ class TestRotacionDelEnlaceDelInforme:
         with TestClient(app) as c:
             assert c.get(f"/informe/{anterior}").status_code == 404
             assert c.get(f"/informe/{nuevo}").status_code == 200
+
+
+class TestEdicionDeClientes:
+    """Corregir el enlace de reseñas era lo único frecuente que obligaba a
+    escribir Python contra la base. Un cliente se da de alta antes de tener su
+    link definitivo de Google, o el dueño rehace su ficha y el link cambia."""
+
+    def _business(self, negocio_id):
+        from app.database import SessionLocal
+        from app.models import Business
+
+        with SessionLocal() as db:
+            return db.get(Business, negocio_id)
+
+    def test_cambia_el_link_de_google(self, negocio):
+        from scripts.new_client import editar
+
+        editar(negocio.token, "", "https://g.page/r/CNuevo123/review", "", "")
+
+        assert self._business(negocio.id).google_review_url == "https://g.page/r/CNuevo123/review"
+
+    def test_cambia_varios_campos_a_la_vez(self, negocio):
+        from scripts.new_client import editar
+
+        editar(negocio.token, "Nombre Nuevo", "", "dueno@nuevo.cl", "123456")
+
+        b = self._business(negocio.id)
+        assert b.name == "Nombre Nuevo"
+        assert b.alert_email == "dueno@nuevo.cl"
+        assert b.telegram_chat_id == "123456"
+
+    def test_no_toca_lo_que_no_se_pidio_cambiar(self, negocio):
+        """Editar el correo no puede alterar el link de Google ni las placas: la
+        URL de una placa está grabada en un chip pegado a una mesa."""
+        from app.database import SessionLocal
+        from app.models import Placement
+        from sqlalchemy import select
+        from scripts.new_client import editar
+
+        antes_url = self._business(negocio.id).google_review_url
+        with SessionLocal() as db:
+            antes_tokens = sorted(
+                p.token for p in db.scalars(select(Placement).where(Placement.business_id == negocio.id))
+            )
+
+        editar(negocio.token, "", "", "otro@correo.cl", "")
+
+        with SessionLocal() as db:
+            despues_tokens = sorted(
+                p.token for p in db.scalars(select(Placement).where(Placement.business_id == negocio.id))
+            )
+        assert self._business(negocio.id).google_review_url == antes_url
+        assert despues_tokens == antes_tokens
+
+    def test_sin_campos_no_hace_nada_y_explica(self, negocio):
+        import pytest
+
+        from scripts.new_client import editar
+
+        with pytest.raises(SystemExit) as salida:
+            editar(negocio.token, "", "", "", "")
+
+        assert "al menos un campo" in str(salida.value)
+
+    def test_token_inexistente_no_revienta(self):
+        import pytest
+
+        from scripts.new_client import editar
+
+        with pytest.raises(SystemExit) as salida:
+            editar("no-existe", "Algo", "", "", "")
+
+        assert "No existe un cliente" in str(salida.value)
+
+    def test_asigna_el_correo_del_panel_si_no_tenia(self, negocio):
+        """Un cliente creado sin correo no podía entrar al panel. Al asignarle uno
+        de alertas, se aprovecha de habilitarle el acceso."""
+        from scripts.new_client import editar
+
+        editar(negocio.token, "", "", "primero@correo.cl", "")
+
+        assert self._business(negocio.id).login_email == "primero@correo.cl"
+
+
+class TestHojaDePlacas:
+    """La hoja se le manda a quien fabrica las placas. Tiene que funcionar sola,
+    sin servidor, y avisar cuando las URLs todavía son provisionales: imprimir
+    con una dirección temporal es el único error irreversible del proyecto."""
+
+    def _hoja(self, negocio_id):
+        from app.database import SessionLocal
+        from app.models import Business, Placement
+        from sqlalchemy import select
+        from scripts.qr_sheet import construir
+
+        with SessionLocal() as db:
+            business = db.get(Business, negocio_id)
+            placements = db.scalars(
+                select(Placement).where(Placement.business_id == negocio_id).order_by(Placement.id)
+            ).all()
+            return construir(business, placements)
+
+    def test_lleva_una_tarjeta_por_placa_con_su_qr(self, negocio):
+        html = self._hoja(negocio.id)
+
+        assert html.count("data:image/png;base64,") == 2, "una imagen por placa"
+        assert "Mesa 1" in html and "Mesón" in html
+
+    def test_los_qr_van_embebidos_y_no_enlazados(self, negocio):
+        """Si el QR se sirviera desde el servidor, la hoja dejaría de funcionar al
+        mandarla por correo o al apagar la app, justo cuando el proveedor la abre."""
+        html = self._hoja(negocio.id)
+
+        assert "<img" in html
+        assert "/qr.png" not in html, "el QR no puede depender del servidor"
+
+    def test_no_usa_javascript(self, negocio):
+        """Tiene que imprimir igual desde cualquier navegador y desde WeasyPrint."""
+        assert "<script" not in self._hoja(negocio.id).lower()
+
+    def test_avisa_de_no_imprimir_con_una_url_provisional(self, negocio):
+        """El aviso es lo que separa una prueba de una caja de placas inservibles."""
+        html = self._hoja(negocio.id)
+
+        assert "NO IMPRIMIR" in html
+
+    def test_sin_aviso_cuando_la_url_es_definitiva(self, negocio, monkeypatch):
+        from scripts import qr_sheet
+
+        monkeypatch.setattr(qr_sheet.settings, "base_url", "https://misresenas.cl")
+        html = self._hoja(negocio.id)
+
+        assert "NO IMPRIMIR" not in html
+
+    def test_muestra_la_url_en_texto_para_grabar_el_chip(self, negocio):
+        """Quien graba el chip NFC necesita leer la URL, no escanear el QR."""
+        html = self._hoja(negocio.id)
+
+        assert f"/r/{negocio.mesa}" in html
+
+
+class TestAptaParaImprimir:
+    """El criterio se asume provisional salvo prueba en contrario. Una URL
+    desconocida tiene que hacer saltar el aviso, no pasar de largo: la placa queda
+    pegada a una mesa y su URL no se puede cambiar nunca."""
+
+    def test_solo_https_en_dominio_propio_sin_puerto(self):
+        import pytest
+
+        from scripts.qr_sheet import es_apta_para_imprimir
+
+        aptas = ["https://misresenas.cl", "https://www.misresenas.cl/"]
+        no_aptas = [
+            "http://misresenas.cl",          # sin cifrar
+            "http://localhost:8000",         # desarrollo
+            "http://127.0.0.1:8000",         # desarrollo
+            "http://192.168.100.7:8000",     # red local
+            "http://testserver",             # entorno de pruebas
+            "https://algo.onrender.com",     # hosting temporal
+            "https://misresenas.cl:8000",    # nadie imprime un puerto
+        ]
+
+        for url in aptas:
+            assert es_apta_para_imprimir(url.rstrip("/")) is True, url
+        for url in no_aptas:
+            assert es_apta_para_imprimir(url) is False, url

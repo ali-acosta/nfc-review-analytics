@@ -17,24 +17,28 @@ cuando tengas tiempo de leer, bloque D (compras) cuando decidas avanzar a produc
 El detalle paso a paso está en [ruta-de-pruebas-manuales.md](ruta-de-pruebas-manuales.md). Acá
 va la versión corta para que lleves la cuenta.
 
-**El servidor ya está corriendo** en `http://10.207.55.203:8000`. Tu celular tiene que estar en
-la misma WiFi. Si se cae o reinicias el computador:
+**El servidor ya está corriendo** en `http://localhost:8000`. Las pruebas se hacen desde el
+navegador de este computador: se intentó desde el celular, pero la red no deja que el teléfono
+alcance al equipo. Para ver la landing como se verá en un teléfono, usa F12 y la vista de
+dispositivo móvil.
+
+Si el servidor se cae o reinicias el computador:
 
 ```powershell
 .venv\Scripts\Activate.ps1
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload
 ```
 
-### A.1 · El flujo del cliente, desde tu celular (lo más importante)
+### A.1 · El flujo del cliente (lo más importante)
 
-- [ ] Escanear el QR de "Mesa 5" (`qrcodes\ZTYFEMtc.png`) o abrir `http://10.207.55.203:8000/r/ZTYFEMtc`
+- [ ] Abrir la landing de "Mesa 5": http://localhost:8000/r/ZTYFEMtc (con F12 en vista de móvil)
 - [ ] Confirmar que **no hay selector de estrellas** antes del botón de Google
 - [ ] Tocar "Dejar reseña en Google" y confirmar que redirige
 - [ ] Recargar y tocar varias veces seguidas, confirmar que no da errores
 - [ ] Abrir el canal privado y enviar un comentario **con** calificación y contacto
 - [ ] Enviar otro **sin** calificación y **sin** contacto
 - [ ] Desde la página de gracias, tocar el botón de Google y anotar qué pasa
-- [ ] Probar un código inventado: `http://10.207.55.203:8000/r/no-existe-esto` → debe dar 404 limpio
+- [ ] Probar un código inventado: `http://localhost:8000/r/no-existe-esto` → debe dar 404 limpio
 
 ### A.2 · El panel del dueño
 
@@ -48,7 +52,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ### A.3 · El informe mensual
 
-- [ ] Abrir `http://10.207.55.203:8000/informe/4VB6_OoK`
+- [ ] Abrir `http://localhost:8000/informe/4VB6_OoK`
 - [ ] Probar un mes concreto: `?mes=2026-08`
 - [ ] Probar un mes vacío: `?mes=2026-01` → debe cargar con ceros, no romperse
 - [ ] Imprimir a PDF desde el navegador y revisar cómo queda
@@ -66,6 +70,18 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - [ ] Recargar la landing más de 60 veces rápido: la página nunca debe fallar
 - [ ] Fallar el login 9 veces seguidas: debe bloquear por unos minutos
 - [ ] Ver la landing en pantalla de computador, no solo celular
+
+### La prueba en celular queda pendiente
+
+El QR y el servidor están correctos: lo verifiqué decodificando el archivo del QR y comprobando
+que el servidor respondía en la dirección de red, no solo en localhost. Lo que falla es que el
+teléfono no logra alcanzar a este computador estando en la misma WiFi, y el firewall de Windows
+no es la causa porque está desactivado en el perfil activo. Queda como sospechoso el aislamiento
+de clientes del router o alguna protección del equipo corporativo.
+
+No vale la pena resolverlo ahora. La prueba de la experiencia real en un teléfono importa y hay
+que hacerla antes de vender, pero puede esperar a que el proyecto viva en un equipo personal
+(punto E3 de esta lista). Mientras tanto, todo lo demás se prueba igual desde el navegador.
 
 ### Lo que cambió mientras preparabas la ronda
 
