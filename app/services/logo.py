@@ -18,17 +18,24 @@ tiene tres efectos que importan:
 3. Descarta metadatos EXIF, que en una foto pueden llevar coordenadas del local.
 
 **Qué NO se acepta**: SVG. Es XML, puede traer scripts dentro y el navegador los
-ejecuta si alguien abre el archivo directamente. Un logo no necesita ser vectorial
-para verse bien a 200 píxeles.
+ejecuta si alguien abre el archivo directamente.
+
+**Ojo con el tamaño**: este mismo archivo termina impreso en la placa física,
+no solo en la pantalla. Por eso se guarda más grande de lo que la landing
+necesita: una placa mal impresa no se corrige, queda pegada a una mesa.
 """
 
 import io
 
 from PIL import Image, UnidentifiedImageError
 
-# Un logo en la landing se ve a unos 120 px de alto en un teléfono. 400 da margen
-# para pantallas de alta densidad sin engordar la fila ni la página.
-MAX_LADO = 400
+# El mismo archivo sirve para dos cosas con exigencias muy distintas: se ve a
+# unos 120 px en la landing de un teléfono, y se IMPRIME en la placa física.
+# Manda la impresión, porque una placa mal impresa no se corrige: queda pegada
+# a una mesa. A 800 px un logo de 50 mm sale a 406 DPI, holgado para imprenta,
+# y pesa unos 6 kB más que a 400. Ese costo se paga una sola vez por visitante
+# gracias al ETag, mientras que un logo borroso en la placa se ve para siempre.
+MAX_LADO = 800
 
 # Tope de lo que se acepta recibir. Antes de decodificar nada: una imagen
 # diminuta puede descomprimirse en gigabytes ("bomba de descompresión"), así que

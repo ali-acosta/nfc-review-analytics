@@ -26,7 +26,8 @@ el comercio. Construido con herramientas open source y capas gratuitas.
   más: un dueño de pyme lo revisa a diario y puede no tener Telegram. Si no hay ninguno
   configurado, la app funciona igual.
 - **Personalización por cliente**: la landing lleva el logo del local y un mensaje propio, para
-  que el cliente del negocio vea la página de ese negocio y no una genérica.
+  que el cliente del negocio vea la página de ese negocio y no una genérica. El logo va también en
+  la hoja de placas, así que la placa física sale con la marca del local.
 - **QR de demo**: mismo link que iría en el chip, para probar el flujo real con un celular.
 
 ## Cómo correrlo
@@ -172,7 +173,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-264 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
+269 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
 fechas se agrupen en hora local del negocio, y que nadie reintroduzca el filtrado de reseñas
 que viola las políticas de Google. Corren solos en cada push.
 

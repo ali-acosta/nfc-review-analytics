@@ -20,7 +20,7 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, an operator admin panel, 264 tests. Demo panel:
+report with automatic delivery, client onboarding, migrations, an operator admin panel, 269 tests. Demo panel:
 `demo@cafe.cl` / `demo1234`. Nothing has been deployed or published — the user has not bought the
 domain yet, and printing a plaque with a temporary URL is the one irreversible mistake to avoid.
 
@@ -101,7 +101,9 @@ client's details (the review link changes often enough that hand-written snippet
 were the riskiest routine operation), and `--rotar-token TOKEN` issues a fresh report link and kills
 the old one. There is no web admin UI yet.
 
-`scripts/qr_sheet.py` renders the manufacturing sheet. Its `es_apta_para_imprimir` assumes a URL is
+`scripts/qr_sheet.py` renders the manufacturing sheet, with the client's logo on every card so the
+plaque itself is branded (embedded as a data: URI like the QRs, since the sheet gets emailed to
+whoever manufactures them and must survive without the server). Its `es_apta_para_imprimir` assumes a URL is
 provisional unless proven otherwise — https, no explicit port, not a dev or temporary host — because
 printing a plaque with a temporary URL is the one irreversible mistake in the project, so an
 unrecognised URL must trip the warning rather than pass silently.
@@ -113,7 +115,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 264 tests
+pytest -q                       # 269 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
@@ -220,7 +222,10 @@ host has no persistent disk, so a file would vanish on the next deploy and the c
 would disappear with nobody having touched anything. Uploads are never stored as received:
 Pillow reopens, downscales and re-encodes to PNG, which proves it is really an image, kills
 polyglot files, and strips EXIF (a photo can carry the venue's coordinates). SVG is rejected
-outright since it is XML and can carry scripts. The image is served from `/r/{token}/logo.png`,
+outright since it is XML and can carry scripts. **It is stored at 800px because the same file
+also gets printed on the physical plaque**, where 400px would land near 200 DPI on a 50mm plaque
+and look soft; print wins that trade because a badly printed plaque cannot be corrected once it is
+glued to a table, and the extra ~6kB is paid once per visitor thanks to the ETag. The image is served from `/r/{token}/logo.png`,
 keyed by the *placement* token and never the dashboard one, because an `<img>` URL leaks
 everywhere and the placement token is already public on the table; it carries an ETag because a
 logo almost never changes and this is fetched on every single tap.

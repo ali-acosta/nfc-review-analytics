@@ -54,6 +54,10 @@
       page-break-inside: avoid;
     }
     .negocio { font-size: 11pt; font-weight: 600; margin: 0 0 2pt; }
+    /* Alto fijo y ancho automático: así un logo apaisado y uno cuadrado ocupan
+       lo mismo verticalmente y todas las tarjetas quedan del mismo alto, que es
+       lo que permite recortarlas derecho. */
+    .logo { max-height: 14mm; max-width: 55mm; margin: 0 auto 3pt; display: block; }
     .etiqueta {
       font-size: 9pt;
       color: #16607d;
@@ -72,6 +76,14 @@
       margin: 0;
     }
     .corte { font-size: 7pt; color: #9aa5a2; margin-top: 5pt; }
+    .nota-logo {
+      font-size: 8pt;
+      color: #6b7a76;
+      background: #f4f6f7;
+      border-radius: 3pt;
+      padding: 6pt 9pt;
+      margin: 0 0 12pt;
+    }
   </style>
 </head>
 <body>
@@ -93,10 +105,21 @@
   </div>
   {% endif %}
 
+  {% if logo %}
+  <p class="nota-logo">
+    El logo va incrustado en este archivo a la resolución que se subió al sistema. Si la placa se va
+    a imprimir a gran tamaño, pídele al cliente el archivo original: siempre será mejor que una copia.
+  </p>
+  {% endif %}
+
   <div class="grid">
     {% for p in placements %}
     <div class="placa">
+      {% if logo %}
+      <img class="logo" src="data:image/png;base64,{{ logo }}" alt="{{ business.name }}" />
+      {% else %}
       <p class="negocio">{{ business.name }}</p>
+      {% endif %}
       <p class="etiqueta">{{ p.label }}</p>
       <img class="qr" src="data:image/png;base64,{{ p.qr_base64 }}" alt="Código QR de {{ p.label }}" />
       <p class="llamada">¿Cómo estuvo tu visita?<br />Escanea y déjanos tu reseña.</p>

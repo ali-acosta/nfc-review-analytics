@@ -280,3 +280,62 @@ class TestPersonalizacionDesdeElPanel:
 
         with SessionLocal() as db:
             assert db.get(Business, negocio.id).welcome_message == "Un mensaje nuevo"
+
+
+class TestElLogoLlegaALaPlacaFisica:
+    """El logo no es solo de la pantalla: termina impreso en la placa que se pega
+    a la mesa. Una placa mal impresa no se corrige, así que aquí manda la
+    imprenta y no el peso de la página."""
+
+    def _hoja(self, negocio_id):
+        from app.models import Placement
+        from sqlalchemy import select
+        from scripts.qr_sheet import construir
+
+        with SessionLocal() as db:
+            business = db.get(Business, negocio_id)
+            placements = db.scalars(
+                select(Placement).where(Placement.business_id == negocio_id).order_by(Placement.id)
+            ).all()
+            return construir(business, placements)
+
+    def test_la_hoja_lleva_el_logo_del_cliente(self, negocio):
+        con_logo(negocio.id)
+
+        html = self._hoja(negocio.id)
+
+        assert 'class="logo"' in html
+        # Un logo por tarjeta más un QR por tarjeta, con dos placas.
+        assert html.count("data:image/png;base64,") == 4
+
+    def test_sin_logo_la_hoja_muestra_el_nombre(self, negocio):
+        """La placa tiene que identificar al negocio igual, con logo o sin él."""
+        html = self._hoja(negocio.id)
+
+        assert 'class="logo"' not in html
+        assert negocio.nombre in html
+
+    def test_el_logo_va_embebido_y_no_enlazado(self, negocio):
+        """La hoja se le manda por correo a quien fabrica: si el logo apuntara al
+        servidor, llegaría rota al proveedor o dejaría de verse al apagar la app."""
+        con_logo(negocio.id)
+
+        html = self._hoja(negocio.id)
+
+        assert "/logo.png" not in html
+
+    def test_se_guarda_con_resolucion_suficiente_para_imprimir(self):
+        """A 800 px un logo de 50 mm sale a más de 400 DPI. A 400 px habría
+        quedado en 203, que se ve borroso impreso."""
+        procesado = logo_service.procesar(imagen(2000, 700))
+        ancho = Image.open(io.BytesIO(procesado)).width
+
+        assert ancho == 800
+        dpi_placa_50mm = ancho / (50 / 25.4)
+        assert dpi_placa_50mm > 300, f"solo {dpi_placa_50mm:.0f} DPI: se vería borroso impreso"
+
+    def test_avisa_a_la_imprenta_sobre_el_original(self, negocio):
+        """Honestidad con el proveedor: lo embebido es una copia reducida."""
+        con_logo(negocio.id)
+
+        assert "archivo original" in self._hoja(negocio.id)

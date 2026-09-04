@@ -80,11 +80,16 @@ def construir(business: Business, placements: list[Placement]) -> str:
         for p in placements
     ]
 
+    # El logo va embebido igual que los QR: la hoja se le manda por correo a quien
+    # fabrica las placas y tiene que verse completa sin acceso al servidor.
+    logo = base64.b64encode(business.logo_data).decode("ascii") if business.logo_data else ""
+
     return env.get_template("qr_sheet.html").render(
         business=business,
         placements=tarjetas,
         base_url=base,
         aviso_base_url=provisional,
+        logo=logo,
         generado_el=datetime.now(ZoneInfo(settings.timezone)).strftime("%d-%m-%Y"),
     )
 
