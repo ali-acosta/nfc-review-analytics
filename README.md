@@ -173,7 +173,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-269 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
+273 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
 fechas se agrupen en hora local del negocio, y que nadie reintroduzca el filtrado de reseñas
 que viola las políticas de Google. Corren solos en cada push.
 

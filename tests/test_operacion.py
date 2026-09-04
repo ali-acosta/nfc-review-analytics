@@ -347,3 +347,71 @@ class TestAptaParaImprimir:
             assert es_apta_para_imprimir(url.rstrip("/")) is True, url
         for url in no_aptas:
             assert es_apta_para_imprimir(url) is False, url
+
+
+class TestLoQueQuedaImpresoEnLaPlaca:
+    """La línea punteada es el corte: todo lo de adentro termina pegado a la mesa
+    de un local, a la vista de sus clientes.
+
+    La etiqueta ("Caja", "Mesa 5") y la URL son datos de fabricación: sirven a
+    quien graba el chip y a quien instala. Impresos en la placa son ruido para el
+    cliente y dejan a la vista una dirección que nadie va a teclear. Van afuera
+    del recorte a propósito, y este test existe para que no se vuelvan a colar.
+    """
+
+    def _texto_de_la_placa(self, negocio_id) -> str:
+        """El texto que de verdad se imprimiría, sin atributos ni etiquetas."""
+        import re
+
+        from app.database import SessionLocal
+        from app.models import Business, Placement
+        from sqlalchemy import select
+        from scripts.qr_sheet import construir
+
+        with SessionLocal() as db:
+            business = db.get(Business, negocio_id)
+            placements = db.scalars(
+                select(Placement).where(Placement.business_id == negocio_id).order_by(Placement.id)
+            ).all()
+            html = construir(business, placements)
+
+        bloque = re.search(r'<div class="placa">(.*?)</div>', html, re.S).group(1)
+        # alt y src no se imprimen.
+        sin_atributos = re.sub(r'(alt|src)="[^"]*"', "", bloque)
+        return " ".join(re.sub(r"<[^>]+>", " ", sin_atributos).split())
+
+    def test_la_url_no_se_imprime_en_la_placa(self, negocio):
+        texto = self._texto_de_la_placa(negocio.id)
+
+        assert "http" not in texto
+        assert negocio.mesa not in texto
+
+    def test_la_etiqueta_interna_no_se_imprime_en_la_placa(self, negocio):
+        """"Mesa 1" le dice algo al que instala, nada al cliente que se sienta."""
+        texto = self._texto_de_la_placa(negocio.id)
+
+        assert "Mesa 1" not in texto
+
+    def test_la_placa_si_lleva_la_llamada_a_la_accion(self, negocio):
+        texto = self._texto_de_la_placa(negocio.id)
+
+        assert "¿Cómo estuvo tu visita?" in texto
+
+    def test_la_ficha_de_fabricacion_conserva_lo_que_hace_falta(self, negocio):
+        """Fuera del recorte, pero presente: sin la URL nadie puede grabar el chip
+        y sin la etiqueta nadie sabe dónde va cada placa."""
+        from app.database import SessionLocal
+        from app.models import Business, Placement
+        from sqlalchemy import select
+        from scripts.qr_sheet import construir
+
+        with SessionLocal() as db:
+            business = db.get(Business, negocio.id)
+            placements = db.scalars(
+                select(Placement).where(Placement.business_id == negocio.id).order_by(Placement.id)
+            ).all()
+            html = construir(business, placements)
+
+        assert f"/r/{negocio.mesa}" in html
+        assert "Mesa 1" in html
+        assert "grabar en el chip" in html

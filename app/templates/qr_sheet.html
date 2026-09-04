@@ -42,40 +42,82 @@
     .grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 8mm;
+      gap: 6mm 4mm;
     }
 
+    /* Cada unidad es una placa más su ficha de fabricación. La ficha va afuera
+       del recorte: sirve a quien graba el chip, no al cliente que se sienta en
+       la mesa. */
+    .unidad { width: 84mm; page-break-inside: avoid; }
+
+    .ficha {
+      display: flex;
+      align-items: baseline;
+      gap: 6pt;
+      padding: 0 2mm 3pt;
+      border-bottom: .5pt solid #eaefee;
+      margin-bottom: 3pt;
+    }
+    .ficha-etiqueta {
+      font-size: 9pt;
+      font-weight: 700;
+      color: #16607d;
+      text-transform: uppercase;
+      letter-spacing: .4pt;
+      white-space: nowrap;
+    }
+    .ficha-url {
+      font-family: "Courier New", monospace;
+      font-size: 7pt;
+      color: #6b7a76;
+      word-break: break-all;
+    }
+
+    /* La línea punteada es el corte: TODO lo de adentro queda impreso en la
+       placa que se pega a una mesa. */
     .placa {
-      width: 82mm;
       border: 0.75pt dashed #9aa5a2;
       border-radius: 3pt;
-      padding: 8mm 6mm;
+      padding: 7mm 6mm 6mm;
       text-align: center;
-      page-break-inside: avoid;
     }
-    .negocio { font-size: 11pt; font-weight: 600; margin: 0 0 2pt; }
-    /* Alto fijo y ancho automático: así un logo apaisado y uno cuadrado ocupan
-       lo mismo verticalmente y todas las tarjetas quedan del mismo alto, que es
-       lo que permite recortarlas derecho. */
-    .logo { max-height: 14mm; max-width: 55mm; margin: 0 auto 3pt; display: block; }
-    .etiqueta {
-      font-size: 9pt;
-      color: #16607d;
+
+    .negocio { font-size: 13pt; font-weight: 600; margin: 0 0 5pt; }
+
+    /* El logo es la identidad del local y va primero en la jerarquía visual.
+       Alto fijo y ancho automático para que un logo apaisado y uno cuadrado
+       ocupen lo mismo verticalmente y todas las placas queden iguales de alto,
+       que es lo que permite recortarlas derecho. */
+    .logo {
+      max-height: 26mm;
+      max-width: 62mm;
+      margin: 0 auto 5pt;
+      display: block;
+    }
+
+    .llamada {
+      font-size: 11pt;
       font-weight: 600;
-      letter-spacing: .4pt;
-      text-transform: uppercase;
-      margin: 0 0 6pt;
+      margin: 0 0 5pt;
+      color: #1d2624;
     }
-    .qr { width: 44mm; height: 44mm; display: block; margin: 0 auto 6pt; }
-    .llamada { font-size: 9.5pt; margin: 0 0 4pt; }
-    .url {
-      font-family: "Courier New", monospace;
-      font-size: 7.5pt;
+
+    /* El QR es lo funcional: no baja de 40 mm. Un código impreso más chico
+       empieza a fallar con cámaras malas y con poca luz, que es exactamente la
+       situación de un local de noche. */
+    .qr { width: 42mm; height: 42mm; display: block; margin: 0 auto 4pt; }
+
+    .pie-placa { font-size: 8.5pt; color: #5c6b68; margin: 0; }
+
+    .corte { font-size: 6.5pt; color: #9aa5a2; margin: 3pt 2mm 0; text-align: center; }
+    .instrucciones {
+      font-size: 8.5pt;
       color: #5c6b68;
-      word-break: break-all;
-      margin: 0;
+      background: #f4f6f7;
+      border-radius: 3pt;
+      padding: 7pt 10pt;
+      margin: 0 0 12pt;
     }
-    .corte { font-size: 7pt; color: #9aa5a2; margin-top: 5pt; }
     .nota-logo {
       font-size: 8pt;
       color: #6b7a76;
@@ -112,19 +154,36 @@
   </p>
   {% endif %}
 
+  <p class="instrucciones">
+    Lo que está <strong>dentro de la línea punteada</strong> es la placa tal como quedará. Lo de
+    afuera es para ti y para quien fabrica: la etiqueta de dónde va instalada y la URL exacta que
+    hay que grabar en su chip NFC. No se imprime en la placa.
+  </p>
+
   <div class="grid">
     {% for p in placements %}
-    <div class="placa">
-      {% if logo %}
-      <img class="logo" src="data:image/png;base64,{{ logo }}" alt="{{ business.name }}" />
-      {% else %}
-      <p class="negocio">{{ business.name }}</p>
-      {% endif %}
-      <p class="etiqueta">{{ p.label }}</p>
-      <img class="qr" src="data:image/png;base64,{{ p.qr_base64 }}" alt="Código QR de {{ p.label }}" />
-      <p class="llamada">¿Cómo estuvo tu visita?<br />Escanea y déjanos tu reseña.</p>
-      <p class="url">{{ p.url }}</p>
-      <p class="corte">Grabar este mismo enlace en el chip NFC · recortar por la línea</p>
+    <div class="unidad">
+      <!-- Ficha de fabricación: FUERA de la línea de corte. Es lo que necesita
+           quien graba el chip y quien instala la placa, y no tiene por qué
+           terminar impreso en la mesa de un cliente. -->
+      <div class="ficha">
+        <span class="ficha-etiqueta">{{ p.label }}</span>
+        <span class="ficha-url">{{ p.url }}</span>
+      </div>
+
+      <!-- Lo de adentro es la placa tal como quedará. Nada más. -->
+      <div class="placa">
+        {% if logo %}
+        <img class="logo" src="data:image/png;base64,{{ logo }}" alt="{{ business.name }}" />
+        {% else %}
+        <p class="negocio">{{ business.name }}</p>
+        {% endif %}
+        <p class="llamada">¿Cómo estuvo tu visita?</p>
+        <img class="qr" src="data:image/png;base64,{{ p.qr_base64 }}" alt="Código QR de {{ p.label }}" />
+        <p class="pie-placa">Escanea o acerca tu teléfono</p>
+      </div>
+
+      <p class="corte">Recortar por la línea · grabar en el chip la URL de arriba</p>
     </div>
     {% endfor %}
   </div>
