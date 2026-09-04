@@ -125,3 +125,34 @@ class TestLosCanalesDeAvisoLleganAProduccion:
                 os.environ.pop("SMTP_PORT", None)
             else:
                 os.environ["SMTP_PORT"] = previo
+
+
+class TestRespaldos:
+    """El historial de toques de un cliente no se puede reconstruir: son personas
+    que pasaron por su local y ya no están. Además es con lo que se le factura."""
+
+    def _workflow(self) -> str:
+        return (RAIZ / ".github" / "workflows" / "respaldo.yml").read_text(encoding="utf-8")
+
+    def test_hay_un_respaldo_agendado(self):
+        import re
+
+        cron = re.search(r'cron:\s*"([^"]+)"', self._workflow()).group(1)
+        minuto, hora, dia_mes, mes, dia_semana = cron.split()
+
+        assert dia_mes == "*" and mes == "*", "debe correr por día de la semana, no del mes"
+        assert dia_semana.isdigit(), "debe fijar un día de la semana"
+
+    def test_el_respaldo_recibe_la_base_de_produccion(self):
+        """Sin DATABASE_URL exportaría una base vacía y el respaldo sería un
+        archivo sin nada, que es peor que no tenerlo: da falsa tranquilidad."""
+        assert "DATABASE_URL: ${{ secrets.DATABASE_URL }}" in self._workflow()
+
+    def test_el_respaldo_se_guarda_en_algun_lado(self):
+        workflow = self._workflow()
+
+        assert "upload-artifact" in workflow
+        assert "retention-days" in workflow
+
+    def test_exporta_todos_los_clientes_y_no_uno(self):
+        assert "--todos" in self._workflow()

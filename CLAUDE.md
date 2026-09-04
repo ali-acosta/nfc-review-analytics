@@ -20,7 +20,7 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, an operator admin panel, 273 tests. Demo panel:
+report with automatic delivery, client onboarding, migrations, an operator admin panel, 292 tests. Demo panel:
 `demo@cafe.cl` / `demo1234`. Nothing has been deployed or published — the user has not bought the
 domain yet, and printing a plaque with a temporary URL is the one irreversible mistake to avoid.
 
@@ -91,6 +91,9 @@ python -m scripts.qr_sheet --token TOKEN
 # Enable the operator admin panel at /admin (prints the ADMIN_PASSWORD_HASH line)
 python -m scripts.admin_password
 
+# Before deploying: fails loudly on anything that would break in production
+python -m scripts.check_deploy --clientes
+
 uvicorn app.main:app --reload
 ```
 
@@ -120,7 +123,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 273 tests
+pytest -q                       # 292 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
@@ -266,6 +269,18 @@ SMTP while standing at a counter. Two tiers exist deliberately:
 (nothing it does may break a customer's review), while `send_message`/`send_document`/
 `send_email` return a bool, because their caller is the monthly send, which has to tell the
 scheduler a delivery failed. Don't collapse the two.
+
+**Before deploying, run `scripts/check_deploy.py`.** It grades findings as BLOQUEA / REVISAR / BIEN,
+and every BLOQUEA is a failure that costs the client money or trust rather than merely being
+untidy: the database still on SQLite over an ephemeral disk, `BASE_URL` pointing at a temporary
+host so every plaque printed from it dies on the next migration, no SMTP so complaint alerts
+vanish silently, a client whose Google link is still a placeholder. It exits non-zero so a deploy
+pipeline can gate on it. `tests/test_check_deploy.py` asserts it actually *rejects* each of those
+— a check that never says no is worse than no check, because it grants confidence without basis.
+
+**Backups**: `.github/workflows/respaldo.yml` exports every client's taps and complaints weekly
+and keeps them as an artifact. Tap history cannot be reconstructed — those are people who walked
+through a venue and are gone — and it is also what the client is billed on.
 
 **Deployment**: `render.yaml` is the blueprint (`/health`, `0.0.0.0`, `$PORT`); `psycopg` ships
 in `requirements.txt` so switching `DATABASE_URL` to Postgres needs no code change. WeasyPrint

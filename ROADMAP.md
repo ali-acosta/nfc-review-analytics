@@ -81,7 +81,7 @@ perder su historial. Ahora hay Alembic (`alembic upgrade head`, aplicado solo en
 desde `render.yaml`) y un test que falla si los modelos y las migraciones se desincronizan.
 Ya se estrenó agregando la columna del correo de alertas, con los 1915 taps de demo intactos.
 
-### Calidad — Tests · ✅ 273 tests
+### Calidad — Tests · ✅ 292 tests
 `pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push, sobre SQLite y Postgres
 (`.github/workflows/tests.yml`). Protegen sobre todo la métrica de conversión —que ya se rompió
 una vez en silencio— y la regla de no reintroducir el filtrado de reseñas.
@@ -126,6 +126,10 @@ usa https, `/health/ready` que sí consulta la base, y `scripts/export_data.py` 
 entregarle sus datos a un cliente.
 
 ## Infraestructura
+
+Antes de desplegar: `python -m scripts.check_deploy --clientes`. Revisa lo que rompe en
+producción y no en desarrollo, y sale con error si encuentra algo bloqueante. Hay respaldo
+semanal automático de los datos de todos los clientes.
 
 $0/mes es correcto para validar, pero **el free tier que duerme es incompatible con el producto
 en producción**: si el cliente toca la placa y espera ~50s a que el servidor despierte, se va.

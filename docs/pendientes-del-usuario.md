@@ -1,7 +1,15 @@
 # Pendientes tuyos — todo lo que requiere tus manos
 
 Este es el único documento que tienes que revisar tú. Todo lo demás (código, tests, correcciones)
-lo trabajo yo en paralelo. Actualizado el 2026-09-03.
+lo trabajo yo en paralelo. Actualizado el 2026-09-03, tras tu ronda de pruebas.
+
+> **Bloque A completado.** Recorriste los 27 puntos de prueba y todo funcionó. La única falla que
+> encontraste fue el informe sin estilos ni gráficos, que resultó ser un bug real de política de
+> seguridad y ya está corregido. Ningún test lo podía detectar, porque esa política la aplica el
+> navegador: es el mejor argumento de por qué valía la pena que probaras a mano.
+
+**Lo que queda es todo tuyo**: siete decisiones, cinco cuentas por crear, cuatro compras y cinco
+tareas de orden. Nada de eso lo puedo hacer yo.
 
 Aquí está **todo** lo que no puedo hacer yo: probar con tus ojos y tu celular, decidir lo que es
 tuyo decidir, crear cuentas a tu nombre, comprar cosas y ordenar lo que quedó suelto.
@@ -12,10 +20,17 @@ cuando tengas tiempo de leer, bloque D (compras) cuando decidas avanzar a produc
 
 ---
 
-## A · Probar lo que está construido
+## A · Probar lo que está construido · ✅ TERMINADO
 
-El detalle paso a paso está en [ruta-de-pruebas-manuales.md](ruta-de-pruebas-manuales.md). Acá
-va la versión corta para que lleves la cuenta.
+Los 27 puntos quedaron probados y funcionando. Se dejan marcados abajo como registro de qué se
+verificó y cuándo; el detalle paso a paso sigue en
+[ruta-de-pruebas-manuales.md](ruta-de-pruebas-manuales.md), que sirve para repetir la ronda
+después de cambios grandes o antes de desplegar.
+
+**Qué quedó sin probar y hay que hacer antes de vender**: la experiencia real en un teléfono. La
+red no dejó que el celular alcanzara al computador, así que todo se probó en el navegador con la
+vista de móvil. No es lo mismo que un cliente parado en un local con mala señal. Queda pendiente
+para cuando el proyecto viva en un equipo personal (punto E3) o esté desplegado.
 
 **El servidor ya está corriendo** en `http://localhost:8000`. Las pruebas se hacen desde el
 navegador de este computador: se intentó desde el celular, pero la red no deja que el teléfono
@@ -60,16 +75,16 @@ uvicorn app.main:app --reload
 
 ### A.4 · Dar de alta un cliente de prueba
 
-- [ ] Correr `python -m scripts.new_client` en modo interactivo y crear uno inventado
-- [ ] Anotar la contraseña que imprime (no se vuelve a mostrar)
-- [ ] Entrar al panel de ese cliente nuevo y confirmar que está vacío
-- [ ] Correr `python -m scripts.new_client --listar`
+- [x] Correr `python -m scripts.new_client` en modo interactivo y crear uno inventado
+- [x] Anotar la contraseña que imprime (no se vuelve a mostrar)
+- [x] Entrar al panel de ese cliente nuevo y confirmar que está vacío
+- [x] Correr `python -m scripts.new_client --listar`
 
 ### A.5 · Casos límite (opcional)
 
-- [ ] Recargar la landing más de 60 veces rápido: la página nunca debe fallar
-- [ ] Fallar el login 9 veces seguidas: debe bloquear por unos minutos
-- [ ] Ver la landing en pantalla de computador, no solo celular
+- [x] Recargar la landing más de 60 veces rápido: la página nunca debe fallar
+- [x] Fallar el login 9 veces seguidas: debe bloquear por unos minutos
+- [x] Ver la landing en pantalla de computador, no solo celular
 
 ### La prueba en celular queda pendiente
 
@@ -103,7 +118,11 @@ los QR apuntan a tu red local (es solo para esta prueba).
 
 ---
 
-## B · Decisiones que solo tú puedes tomar
+## B · Decisiones que solo tú puedes tomar · ⏳ **ES LO QUE MÁS BLOQUEA**
+
+Son siete y ninguna toma más de un minuto de leer. Con ellas respondidas se cierra todo lo que
+quedaba abierto de la revisión técnica en la parte de código. Puedes contestar
+**"todas las recomendadas"** y las implemento de una vez.
 
 Para cada una dejo mi recomendación, así puedes responder con un "sí" o "no" sin tener que
 investigar. Ninguna bloquea mi trabajo de esta semana.

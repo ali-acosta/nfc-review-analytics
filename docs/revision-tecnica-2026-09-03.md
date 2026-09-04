@@ -967,7 +967,7 @@ parámetro en vez de leerla de `settings`; `load_taps` y `load_feedback` la toma
 Los tests de `tests/test_horario.py` se parametrizan con dos zonas. Un día de trabajo. No
 antes.
 
-### 9.8 · Respaldos
+### 9.8 · Respaldos · ✅ HECHO 2026-09-03
 
 Neon gratuito tiene recuperación en el tiempo limitada. Un cliente con placas instaladas tiene
 un historial irreemplazable. Agregar al workflow mensual, o a uno semanal, un paso que corra
@@ -1024,3 +1024,6 @@ mediano; se justifica con más de diez clientes o con un segundo operador.
 | 2026-09-03 | Fase E: 9.1 (`--editar`) y 9.2 (hoja de placas). 189 tests. Panel e informe verificados coincidiendo con datos reales de la ronda de pruebas del usuario. |
 | 2026-09-03 | **La prueba manual encontró un bug que la suite no podía ver**: la CSP pública bloqueaba los estilos del informe y el dueño lo habría recibido como texto plano. Corregido con una CSP propia para `/informe` y cuatro tests de regresión. 193 tests. |
 | 2026-09-03 | Panel de administración del operador en `/admin` (9.11), adelantado a pedido del usuario. 28 tests propios, la mitad sobre quién no puede entrar. 221 tests. |
+| 2026-09-03 | Personalización por cliente (logo y mensaje), logo también en la placa impresa, y rediseño de la hoja de fabricación. 273 tests. |
+| 2026-09-03 | Revisión previa al despliegue (`scripts/check_deploy.py`) y respaldo semanal automático (9.8). 292 tests. |
+| 2026-09-03 | **El usuario completó la ronda de pruebas manuales entera**: 27 de 27 puntos. Única falla encontrada, el informe sin estilos, ya corregida. Queda sin probar la experiencia en un teléfono real, bloqueada por la red. |
