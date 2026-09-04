@@ -148,14 +148,12 @@ la plataforma.
 
 # Próximos pasos
 
-*Estado al 2026-09-03. Esta es la sección para leer primero al retomar.*
+*Estado al 2026-09-03, cierre de la jornada. Esta es la sección para leer primero al retomar.*
 
-> **Revisión técnica completa del 2026-09-03:**
-> [docs/revision-tecnica-2026-09-03.md](docs/revision-tecnica-2026-09-03.md). Tiene cuatro
-> hallazgos que rompen con el primer cliente real y que los tests no ven, el plan de trabajo en
-> orden (fases A a E) y los próximos desarrollos con detalle. **Leerla antes de construir nada** y
-> marcar ahí lo que se vaya resolviendo. La pregunta abierta sobre monitoreo de errores queda
-> respondida en su hallazgo `M1`: la recomendación es sí, integrado y desactivado hasta tener la clave.
+> Documentos que hay que leer antes de tocar código:
+> [docs/revision-tecnica-2026-09-03.md](docs/revision-tecnica-2026-09-03.md) (hallazgos, qué está
+> resuelto y qué no, y por qué las cosas son como son) y
+> [docs/pendientes-del-usuario.md](docs/pendientes-del-usuario.md) (todo lo que depende del usuario).
 
 ## Cómo levantar todo
 
@@ -164,74 +162,84 @@ la plataforma.
 uvicorn app.main:app --reload
 ```
 
-Panel de demo: `http://localhost:8000/panel/login` con **demo@cafe.cl / demo1234**.
-La base de demo tiene ~1900 taps y 33 quejas repartidos en tres meses, así que el panel y el
-informe se ven como los de un local real. Si hiciera falta regenerarla:
-`python -m scripts.seed_demo_data --limpiar`.
+| Qué | Dónde |
+|---|---|
+| Panel del comercio | `/panel/login` · `demo@cafe.cl` / `demo1234` |
+| Panel del operador | `/admin` · clave **`admin-de-prueba-1234`** (provisional, ver abajo) |
+| Landing de demo | `/r/ZTYFEMtc` (Café Demo, "Mesa 5") |
+| Informe de demo | `/informe/4VB6_OoK` |
+
+Hay dos negocios en la base local: **Café Demo** (token `4VB6_OoK`, con ~1900 toques de historia y
+logo cargado) y **local3** (token `m0dyc-RA`), creado por el usuario probando el panel.
+
+El `.env` local tiene `BASE_URL=http://localhost:8000` y un `ADMIN_PASSWORD_HASH` de prueba.
+`python -m scripts.check_deploy --clientes` lista lo que falta para producción.
+
+## Estado: el producto está terminado para validar
+
+Funciona de punta a punta y **el usuario probó los 27 puntos de la ruta manual, todos correctos**.
+La única falla que apareció fue el informe sin estilos, que resultó ser un bug real de CSP y ya está
+corregido. Quedan 292 tests en verde.
+
+Lo construido en la última jornada, además de cerrar 27 hallazgos de la revisión técnica:
+
+- **Panel de administración del operador** en `/admin`: alta, edición, placas, contraseñas, rotación
+  del enlace del informe, hoja de placas, aviso de prueba, actividad por cliente y eliminación.
+- **Personalización por cliente**: logo y mensaje propios en la landing, y el logo también impreso
+  en la placa física.
+- **Revisión previa al despliegue** y **respaldo semanal automático**.
+
+## Lo único que bloquea seguir avanzando en código
+
+**Siete decisiones del usuario**, todas con recomendación escrita, en el bloque B de
+[docs/pendientes-del-usuario.md](docs/pendientes-del-usuario.md). Basta que responda
+"todas las recomendadas". Son: caducidad del enlace del informe, ocultar el contacto en el informe,
+texto del canal privado, borrado automático de contactos antiguos, responsable del tratamiento de
+datos, expiración de la sesión y logout por POST.
+
+## Lo que se puede construir sin esperar a nadie
+
+1. **Recuperación de contraseña por el propio dueño** (9.5 de la revisión). Hoy, si la olvida, el
+   operador se la regenera y se la dicta. Requiere SMTP para llegar, pero se puede construir ya.
+2. **Correo de bienvenida al dar de alta** (9.6), con enlace para que el dueño cree su propia clave,
+   así la contraseña nunca viaja en texto plano ni hay que dictarla.
+3. **Módulo 3, sentimiento** (9.10). Sigue siendo la prioridad más baja.
+
+## Bloqueado esperando al usuario, por orden de importancia
+
+1. **Comprar el dominio** (~$10/año). Bloquea imprimir cualquier placa. Es el único error
+   irreversible del proyecto y cuesta diez dólares evitarlo.
+2. **Conseguir un enlace real de reseñas de Google**. Hoy los dos negocios tienen uno provisional,
+   así que un visitante que toque la placa no llega a dejar reseña. `check_deploy` lo marca como
+   bloqueante.
+3. **Solicitar acceso a la API de Google Business Profile**. Tarda semanas en aprobarse y no cuesta
+   nada empezar; es lo que permitiría mostrar reseñas publicadas y no solo clics.
+4. Crear las cuentas de Neon, Brevo y Sentry, y desplegar.
+5. **Cambiar la clave del panel de administración**, que hoy es una de prueba escrita en una
+   conversación: `python -m scripts.admin_password`.
+6. **Revocar los tokens de GitHub** pegados en el chat, y subir los 8 commits pendientes.
 
 ## Decisiones ya tomadas (no volver a abrirlas)
 
 | Decisión | Resuelto |
 |---|---|
 | `TIMEZONE` es global (`America/Santiago`); pasa a columna por negocio solo cuando haya un cliente fuera de Chile. | Confirmado por el usuario, 2026-09-03 |
-| El enlace del informe **no pide login**: va por correo al propio dueño, como el enlace de una factura. La instrucción fue "la menor fricción posible". | Confirmado por el usuario, 2026-09-03 |
-| Login del panel con `scrypt` de la biblioteca estándar; se descartó Supabase Auth para no sumar un tercero. | Decidido |
+| El enlace del informe **no pide login**: va por correo al propio dueño, como el enlace de una factura. | Confirmado por el usuario, 2026-09-03 |
+| Login del panel con `scrypt` de la biblioteca estándar; se descartó Supabase Auth. | Decidido |
 | WeasyPrint queda fuera de `requirements.txt`: un build que falla es peor que un PDF que falta. | Decidido |
-
-## Pregunta abierta — ✅ RESPONDIDA
-
-Era el **monitoreo de errores**. Se confirmó y ya está: `sentry-sdk` integrado y apagado mientras
-`SENTRY_DSN` esté vacío. Falta solo que el usuario cree la cuenta gratuita y pegue la clave —
-está como C2 en `docs/pendientes-del-usuario.md`.
-
-## Decisiones esperando al usuario
-
-Siete, todas con recomendación escrita, en `docs/pendientes-del-usuario.md` (bloque B): enlace del
-informe con vencimiento, ocultar el contacto en el informe, texto del canal privado, borrado
-automático de contactos antiguos, responsable del tratamiento de datos, expiración de la sesión y
-logout por POST.
-
-## Nota histórica — la pregunta que había quedado abierta
-
-En el último mensaje el usuario pegó dos veces el texto del enlace del informe, y su **"ok hazlo"**
-quedó apuntando a eso, que contradice lo que había pedido una línea antes. Lo más probable es que
-fuera para el punto que se le quedó en el camino: **monitoreo de errores** (tipo Sentry, capa
-gratuita). Hay que confirmarlo antes de construir nada.
-
-Si confirma: se puede dejar la integración lista y desactivada, leyendo la clave de una variable
-de entorno, para que él solo la pegue cuando cree la cuenta.
-
-## Bloqueado esperando al usuario
-
-1. **Comprar el dominio** (~$10/año). Bloquea imprimir cualquier placa. Es el único gasto que
-   vale la pena romper la regla de $0 — ver la tabla de decisiones irreversibles arriba.
-2. **Conseguir un link real de reseña de Google**, de cualquier negocio conocido. Bloquea hacer
-   una demo con un comercio de verdad. Hoy el negocio demo tiene un placeholder.
-3. **Bloquear los chips por contraseña** al grabarlos (proceso de fabricación, no software).
+| Base de datos: **Neon, no Supabase**, porque Supabase pausa los proyectos gratuitos y un cliente frente a una placa que no carga es inaceptable. | Decidido, 2026-09-03 |
+| El logo se guarda en la base y no como archivo: el hosting no tiene disco persistente. | Decidido, 2026-09-03 |
+| El panel de administración no existe sin `ADMIN_PASSWORD_HASH`: responde 404, nunca queda abierto por olvido. | Decidido, 2026-09-03 |
 
 ## WhatsApp como canal de alertas — explicado, sin decidir
 
-Las alertas son dos: la **queja privada** (inmediata, es la que sostiene la suscripción — permite
+Las alertas son dos: la **queja privada** (inmediata, es la que sostiene la suscripción, permite
 llamar al cliente antes de que escriba una estrella pública) y el **resumen mensual**.
 
 Hoy salen por correo y/o Telegram, ambos gratis. WhatsApp sería mejor canal porque es donde
-realmente está un dueño de pyme chileno, pero la API oficial de Meta cobra los mensajes que
-inicia el negocio (del orden de centavos por mensaje; verificar tarifas al decidir). Las
-librerías no oficiales son gratis pero arriesgan el baneo del número del negocio: **no usarlas**.
+realmente está un dueño de pyme chileno, pero la API oficial de Meta cobra los mensajes que inicia
+el negocio (verificar tarifas al decidir). Las librerías no oficiales son gratis pero arriesgan el
+baneo del número del negocio: **no usarlas**.
 
-**Recomendación dada**: no pagar todavía. Arrancar con correo, y con dos o tres clientes reales
-medir si el dueño efectivamente reacciona. Si no lee el correo, ahí sí conviene pagar WhatsApp —
-y para entonces ya habría ingresos que lo cubren. Agregar un canal es tocar solo `notify.py`.
-
-## Lo que se puede hacer sin depender del usuario
-
-- ~~Panel web de administración~~ ✅ **hecho**: `/admin`, con alta, edición, placas, contraseñas y
-  rotación del enlace del informe. Se adelantó sobre lo planificado a pedido del usuario, con un
-  argumento correcto: el operador es una persona y no puede depender de una terminal para atender a
-  sus clientes. Se habilita con `python -m scripts.admin_password`; mientras `ADMIN_PASSWORD_HASH`
-  esté vacío, responde 404. Además del alta y la edición muestra la **actividad** de cada cliente (días sin uso: delata una placa despegada antes de que el cliente lo note), permite **probar el canal de alertas** el mismo día del alta, entrega la **hoja de placas** para fabricación y deja **eliminar** un cliente escribiendo su nombre exacto.
-- ~~Hoja de impresión de QR~~ ✅ hecha: `python -m scripts.qr_sheet --token TOKEN`.
-- **Módulo 3 (IA de sentimiento)**: local y gratis con `pysentimiento`/VADER. Sigue siendo la
-  prioridad más baja — con 20 reseñas al mes nadie necesita NLP.
-- **Módulo 2 (API de Google Business Profile)**: importa más, pero necesita credenciales OAuth y
-  un negocio verificado, así que en la práctica también depende del usuario.
+**Recomendación dada**: no pagar todavía. Arrancar con correo y, con dos o tres clientes reales,
+medir si el dueño efectivamente reacciona. Agregar un canal es tocar solo `notify.py`.
