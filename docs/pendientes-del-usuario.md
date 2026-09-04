@@ -176,10 +176,16 @@ cuando pegas la clave.
 **Por qué**: es el canal de la alerta de queja, que es la razón principal por la que un cliente
 sigue pagando. Un dueño de pyme chileno revisa su correo a diario.
 
-**Y desde hoy también**: por ahí recupera su contraseña. Ya está construido —el dueño entra a
-"¿Olvidaste tu contraseña?" en el login y le llega un enlace de una hora— pero sin SMTP la
-página se lo dice honestamente y vuelves a tener que regenerársela tú y dictársela. Es la
-diferencia entre una función que existe y una que funciona.
+**Y desde hoy también**, dos cosas más que ya están construidas y que sin SMTP no sirven:
+
+- **El correo de bienvenida**: al dar de alta un cliente le llega un enlace para que elija su
+  propia contraseña, y tú no tienes que dictarle nada. Sin SMTP, el alta te imprime una clave
+  generada y vuelves a leérsela por teléfono.
+- **La recuperación de contraseña**: el dueño entra a "¿Olvidaste tu contraseña?" en el login y
+  le llega un enlace de una hora. Sin SMTP la página se lo dice honestamente, y vuelve a
+  depender de que se la regeneres tú.
+
+Es la diferencia entre una función que existe y una que funciona.
 
 ### C4 · Neon (base de datos) — gratis · **no uses Supabase**
 
@@ -324,5 +330,8 @@ Son cinco minutos y cubren lo que la suite no ve. El detalle está en
 - [ ] Correr `python -m scripts.new_client --listar`, copiar el enlace del informe que imprime y
       abrirlo en una ventana privada: ese sí debe abrir, con sus gráficos.
 - [ ] En el panel del dueño, cerrar sesión con el botón nuevo.
+- [ ] Da de alta un cliente de prueba desde `/admin`: sin SMTP debe seguir mostrándote la
+      contraseña generada. Con Brevo configurado, esa pantalla tiene que cambiar a "ya le
+      avisamos al dueño" y no mostrarte ninguna clave.
 - [ ] En el login, entrar a "¿Olvidaste tu contraseña?": sin SMTP configurado debe decirlo
       claramente, no fingir que mandó un correo.

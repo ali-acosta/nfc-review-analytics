@@ -45,10 +45,10 @@ def _clave_guardada(negocio):
 
 def _smtp_configurado(monkeypatch):
     """La ruta se niega a fingir un envío si no hay por dónde mandarlo."""
-    from app.routers import auth as auth_router
+    from app.services import correos
 
-    monkeypatch.setattr(auth_router.settings, "smtp_host", "smtp.ejemplo.cl")
-    monkeypatch.setattr(auth_router.settings, "smtp_from", "avisos@ejemplo.cl")
+    monkeypatch.setattr(correos.settings, "smtp_host", "smtp.ejemplo.cl")
+    monkeypatch.setattr(correos.settings, "smtp_from", "avisos@ejemplo.cl")
 
 
 class TestNoDelataQuienEsCliente:
@@ -76,7 +76,7 @@ class TestElEnvio:
             enviados.append((to, subject, body))
             return True
 
-        monkeypatch.setattr("app.routers.auth.send_email", fake_send)
+        monkeypatch.setattr("app.services.correos.send_email", fake_send)
 
         cliente.post("/panel/recuperar", data={"email": CORREO})
 
@@ -94,7 +94,7 @@ class TestElEnvio:
             enviados.append(to)
             return True
 
-        monkeypatch.setattr("app.routers.auth.send_email", fake_send)
+        monkeypatch.setattr("app.services.correos.send_email", fake_send)
 
         cliente.post("/panel/recuperar", data={"email": "nadie@ninguna.cl"})
 
@@ -104,9 +104,9 @@ class TestElEnvio:
         """Mostrar 'te mandamos un correo' sin tener por dónde mandarlo deja al
         dueño esperando algo que no va a llegar nunca."""
         _con_credenciales(negocio)
-        from app.routers import auth as auth_router
+        from app.services import correos
 
-        monkeypatch.setattr(auth_router.settings, "smtp_host", "")
+        monkeypatch.setattr(correos.settings, "smtp_host", "")
 
         respuesta = cliente.post("/panel/recuperar", data={"email": CORREO})
 
@@ -219,6 +219,47 @@ class TestElEnlace:
 
         assert respuesta.status_code == 400
         assert verify_password(CLAVE_VIEJA, _clave_guardada(negocio))
+
+
+class TestLoQueViajaDentroDelEnlace:
+    """`itsdangerous` firma, pero no cifra.
+
+    El contenido de un token se lee con solo decodificarlo, sin conocer la clave
+    del servidor. La primera versión metía ahí el hash scrypt completo del dueño:
+    un correo reenviado o una casilla filtrada lo entregaban para atacarlo con
+    calma, sin límite de intentos y sin que nadie se enterara. Ahora viaja una
+    huella irreversible, que cumple lo mismo (morir cuando la clave cambia) sin
+    llevar nada aprovechable.
+    """
+
+    def _contenido(self, firma: str) -> dict:
+        from itsdangerous import URLSafeTimedSerializer
+
+        # A propósito con una clave equivocada: se trata de leer lo que puede
+        # leer cualquiera que solo tenga el enlace.
+        return URLSafeTimedSerializer("una-clave-que-no-es-la-del-servidor").loads_unsafe(firma)[1]
+
+    def test_no_lleva_el_hash_de_la_contraseña(self, negocio):
+        guardado = _con_credenciales(negocio)
+        firma = _enlace_para(negocio).split("firma=")[1]
+
+        contenido = str(self._contenido(firma))
+
+        assert guardado not in contenido
+        assert "scrypt" not in contenido
+
+    def test_el_correo_de_bienvenida_tampoco(self, negocio):
+        guardado = _con_credenciales(negocio)
+        firma = enlaces.firmar_bienvenida(negocio.id, guardado)
+
+        contenido = str(self._contenido(firma))
+
+        assert guardado not in contenido
+        assert "scrypt" not in contenido
+
+    def test_la_huella_cambia_con_la_contraseña(self):
+        """Es lo que hace que el enlace muera al usarse."""
+        assert enlaces.huella(hash_password("una")) != enlaces.huella(hash_password("otra"))
 
 
 class TestSeLlegaDesdeElLogin:

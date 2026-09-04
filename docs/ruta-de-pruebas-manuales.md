@@ -135,6 +135,12 @@ Esto es lo más importante de probar primero: es literalmente el producto.
     - Qué deberías ver: **exactamente la misma respuesta** que con el correo real. Si alguna vez
       responde distinto, el formulario sirve para averiguar quiénes son tus clientes.
 
+12d. **[ ] Da de alta un cliente de prueba desde `/admin`** con un correo cualquiera.
+    - Qué deberías ver **hoy**, sin SMTP: la pantalla con la contraseña generada, igual que
+      antes.
+    - Qué deberías ver **con Brevo configurado**: "Ya le avisamos al dueño", y **ninguna
+      contraseña en pantalla**. Ese es el punto de la función: que no tengas que dictar nada.
+
 ## Parte 3 — El informe mensual
 
 13. **[ ] Consigue el enlace firmado** con `python -m scripts.new_client --listar` y ábrelo en

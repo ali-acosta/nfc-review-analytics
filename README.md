@@ -90,10 +90,11 @@ python -m scripts.new_client --agregar TOKEN --placas "Mesa 7,Mesa 8"
 python -m scripts.new_client --reset-password TOKEN
 ```
 
-Entrega los QR listos en `qrcodes/` y las **credenciales del panel** para el dueño. La
-contraseña se guarda con hash: se muestra una sola vez, anótala en ese momento. Si se pierde, el
-dueño la recupera solo desde "¿Olvidaste tu contraseña?" en el login (requiere SMTP configurado);
-`--reset-password` queda como salida para cuando no haya correo saliente.
+Entrega los QR listos en `qrcodes/` y, si hay SMTP configurado, **le manda al dueño un correo de
+bienvenida** con un enlace para que elija su propia contraseña: no hay que dictarle nada ni la
+clave viaja en texto plano. Sin SMTP imprime una contraseña generada, como antes, para que el
+alta no quede sin salida. Si el dueño la olvida, la recupera solo desde "¿Olvidaste tu
+contraseña?" en el login; `--reset-password` queda para cuando no haya correo saliente.
 
 El enlace del informe que imprime va firmado y vale 90 días. Cópialo de ahí: la ruta a secas
 (`/informe/TOKEN`) ya no abre nada sin sesión.
@@ -181,7 +182,7 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-337 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
+352 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
 fechas se agrupen en hora local del negocio, y que nadie reintroduzca el filtrado de reseñas
 que viola las políticas de Google. Corren solos en cada push, sobre SQLite y Postgres.
 

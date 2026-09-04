@@ -14,7 +14,20 @@
 <p class="error" role="alert">{{ aviso }}</p>
 {% endfor %}
 
-{% if password %}
+{% if avisado %}
+<section class="destacado">
+  <h2>Ya le avisamos al dueño</h2>
+  <p class="apunte">
+    Le mandamos el correo de bienvenida a <code>{{ business.login_email }}</code> con un enlace
+    para que elija su propia contraseña. Vale una semana y sirve una sola vez.
+  </p>
+  <p class="apunte">
+    No tienes que dictarle nada: así la contraseña no viaja en texto plano ni queda escrita en
+    ningún chat. Si el correo no le llega, revisa que esté bien escrito y genérale una clave
+    desde su ficha.
+  </p>
+</section>
+{% elif password %}
 <section class="destacado">
   <h2>Credenciales del dueño</h2>
   <p class="apunte">Entrégaselas ahora. La contraseña no se puede volver a mostrar.</p>
@@ -24,8 +37,8 @@
     <dt>Contraseña</dt><dd><code class="clave">{{ password }}</code></dd>
   </dl>
   <p class="apunte">
-    Se guarda cifrada, así que nadie puede recuperarla. Si se pierde, se genera otra desde la
-    ficha del cliente.
+    No se pudo mandar el correo de bienvenida, así que hay que entregarla a mano. Con el SMTP
+    configurado, el dueño elige su propia clave y esto no aparece.
   </p>
 </section>
 {% else %}

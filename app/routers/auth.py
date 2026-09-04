@@ -9,12 +9,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.database import get_db
 from app.models import Business
-from app.services import enlaces
+from app.services import correos, enlaces
 from app.services.auth import SESSION_KEY, hash_password, verify_password
-from app.services.email import send_email
 from app.services.ratelimit import client_ip, login_limiter, recovery_limiter
 
 router = APIRouter(prefix="/panel")
@@ -181,16 +179,12 @@ AVISO_ENVIADO = (
 )
 
 
-def _hay_correo_saliente() -> bool:
-    return bool(settings.smtp_host and settings.smtp_from)
-
-
 @router.get("/recuperar", response_class=HTMLResponse)
 def recuperar_form(request: Request):
     return templates.TemplateResponse(
         request,
         "recuperar.html",
-        {"error": None, "aviso": None, "hay_correo": _hay_correo_saliente()},
+        {"error": None, "aviso": None, "hay_correo": correos.hay_correo_saliente()},
     )
 
 
@@ -205,11 +199,11 @@ def recuperar(
         return templates.TemplateResponse(
             request,
             "recuperar.html",
-            {"error": error, "aviso": aviso, "hay_correo": _hay_correo_saliente()},
+            {"error": error, "aviso": aviso, "hay_correo": correos.hay_correo_saliente()},
             status_code=status,
         )
 
-    if not _hay_correo_saliente():
+    if not correos.hay_correo_saliente():
         # Decirlo es más honesto que mostrar "te mandamos un correo" y dejar al
         # dueño esperando algo que nunca va a llegar. No revela nada de nadie.
         return pagina(
@@ -231,19 +225,7 @@ def recuperar(
     # la respuesta tarde lo mismo exista o no la cuenta. Un envío que se demora
     # solo cuando el correo es real delataría lo mismo que el texto no dice.
     if business is not None and business.login_email:
-        enlace = f"{settings.base_url.rstrip('/')}/panel/nueva-clave?firma=" + enlaces.firmar_clave(
-            business.id, business.password_hash
-        )
-        background.add_task(
-            send_email,
-            business.login_email,
-            "Crea una contraseña nueva para tu panel",
-            f"Hola,\n\nPediste crear una contraseña nueva para el panel de {business.name}.\n\n"
-            f"Entra aquí y elígela:\n{enlace}\n\n"
-            "El enlace vale una hora y sirve una sola vez.\n\n"
-            "Si no fuiste tú, ignora este correo: tu contraseña actual sigue funcionando "
-            "y nadie puede entrar con este enlace sin abrir tu casilla.\n",
-        )
+        background.add_task(correos.enviar_recuperacion, business)
 
     return pagina(aviso=AVISO_ENVIADO)
 
@@ -253,9 +235,9 @@ def _negocio_de_la_firma(db: Session, firma: str | None) -> Business | None:
     datos = enlaces.datos_de_clave(firma)
     if datos is None:
         return None
-    business_id, hash_firmado = datos
+    business_id, huella_firmada = datos
     business = db.get(Business, business_id)
-    if business is None or business.password_hash != hash_firmado:
+    if business is None or enlaces.huella(business.password_hash) != huella_firmada:
         return None
     return business
 

@@ -13,6 +13,7 @@ Reemplaza el tener que escribir Python a mano para dar de alta a alguien.
 """
 
 import argparse
+import asyncio
 import sys
 
 from sqlalchemy import select
@@ -20,7 +21,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import SessionLocal, init_db
 from app.models import Business, Placement, new_token
-from app.services import enlaces
+from app.services import correos, enlaces
 from app.services import report as report_service
 from app.services.auth import generate_password, hash_password
 from app.services.qrcode_gen import generate_qr_for_token, target_url
@@ -61,7 +62,24 @@ def _check_google_url(url: str) -> None:
         print("     Lo esperado es algo tipo https://g.page/r/…/review")
 
 
-def _show(business: Business, placements: list[Placement], password: str = "") -> None:
+def _avisar_al_dueno(business: Business) -> bool:
+    """Le manda el correo de bienvenida. Devuelve si salió.
+
+    Si sale, el operador no tiene que dictarle ninguna contraseña: el dueño la
+    elige desde el enlace. Si no sale —sin SMTP, o el proveedor caído—, quien
+    llama vuelve al camino de siempre e imprime la clave.
+    """
+    if not business.login_email or not correos.hay_correo_saliente():
+        return False
+    return asyncio.run(correos.enviar_bienvenida(business))
+
+
+def _show(
+    business: Business,
+    placements: list[Placement],
+    password: str = "",
+    avisado: bool = False,
+) -> None:
     print(f"\n{LINE}\n  {business.name}\n{LINE}")
     print("\n  PLACAS  (cada código va grabado en su propio chip)\n")
     for p in placements:
@@ -72,14 +90,24 @@ def _show(business: Business, placements: list[Placement], password: str = "") -
 
     base = settings.base_url.rstrip("/")
 
-    if password:
+    if avisado:
+        # El caso bueno: la clave no se dicta ni queda escrita en ningún lado.
+        # El dueño la elige desde el enlace del correo y nadie más la ve.
+        print("  ACCESO AL PANEL\n")
+        print(f"    Le mandamos el correo de bienvenida a {business.login_email},")
+        print("    con un enlace para que elija su contraseña. Vale una semana.")
+        print(f"    Después entra siempre en: {base}/panel/login")
+        print("\n    Si no le llega (que revise spam), genérale una clave con:")
+        print(f"      python -m scripts.new_client --reset-password {business.dashboard_token}\n")
+    elif password:
         print("  CREDENCIALES DEL PANEL  (entrégaselas al dueño)\n")
         print(f"    Entrar en: {base}/panel/login")
         print(f"    Correo:    {business.login_email}")
         print(f"    Clave:     {password}")
         # La contraseña se guarda con hash: si se pierde, no se recupera, se
         # genera otra con --reset-password.
-        print("\n    Anótala ahora: no se puede volver a mostrar.\n")
+        print("\n    Anótala ahora: no se puede volver a mostrar.")
+        print("    (Con SMTP configurado esto se le manda solo y no hay que dictarlo.)\n")
     else:
         print("  [!] Sin correo no se crearon credenciales del panel.")
         print("      Asígnalas después con --reset-password.\n")
@@ -175,7 +203,7 @@ def crear(nombre: str, google_url: str, labels: list[str], telegram: str, email:
         for p in placements:
             db.refresh(p)
 
-        _show(business, placements, password)
+        _show(business, placements, password, avisado=_avisar_al_dueno(business))
 
 
 def reset_password(token: str) -> None:

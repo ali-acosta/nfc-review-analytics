@@ -1004,10 +1004,16 @@ Cuatro decisiones que no son obvias:
 Tests en `tests/test_recuperacion.py`. **Depende de SMTP para servir en producción**, que sigue
 siendo bloqueante en `check_deploy`.
 
-**9.6 (correo de bienvenida) queda a un paso**: el mecanismo del enlace ya existe, así que es
-llamar a `firmar_clave` desde el alta y mandar el correo en vez de imprimir la contraseña.
+**Hallazgo posterior, corregido el 2026-09-04**: la primera versión metía el **hash scrypt
+completo** del dueño dentro del enlace. `itsdangerous` firma pero no cifra, así que ese contenido
+se lee decodificando el token, sin conocer la clave del servidor: un correo reenviado o una
+casilla filtrada entregaban el hash para atacarlo sin apuro ni límite de intentos. Ahora viaja
+una huella irreversible (`enlaces.huella`), que cumple lo mismo —morir cuando la contraseña
+cambia— sin llevar nada aprovechable, y de paso acorta el enlace de 114 a 78 caracteres.
+`tests/test_recuperacion.py::TestLoQueViajaDentroDelEnlace` decodifica el token a propósito con
+una clave equivocada, que es lo que puede hacer cualquiera con el enlace en la mano.
 
-### 9.6 · Correo de bienvenida en el alta
+### 9.6 · Correo de bienvenida en el alta · ✅ HECHO 2026-09-04
 
 Cuando `new_client.py` crea un cliente con correo, mandar automáticamente un correo con el
 enlace del panel y las instrucciones. **No mandar la contraseña por correo**: mandar el enlace
@@ -1084,3 +1090,5 @@ mediano; se justifica con más de diez clientes o con un segundo operador.
 | 2026-09-03 | **El usuario completó la ronda de pruebas manuales entera**: 27 de 27 puntos. Única falla encontrada, el informe sin estilos, ya corregida. Queda sin probar la experiencia en un teléfono real, bloqueada por la red. |
 | 2026-09-03 | **Bloque B cerrado** (B1–B7, "todas las recomendadas"): enlace del informe firmado y con vencimiento, texto neutro del canal privado, retención de contactos a 6 meses, sesión de 7 días, logout por POST. Cierra I7.2, I7.3, M5, M11, M15 y M16. 299 tests. |
 | 2026-09-03 | Recuperación de contraseña por el propio dueño (9.5), con su limitador propio y enlace de un solo uso. 337 tests. |
+| 2026-09-04 | Correo de bienvenida en el alta (9.6): el dueño elige su contraseña desde un enlace y el operador deja de dictarla. Sin SMTP el alta sigue imprimiendo la clave, para no dejar al cliente sin entrada. 349 tests. |
+| 2026-09-04 | **Corregido un hallazgo de la jornada anterior**: los enlaces de cuenta llevaban dentro el hash scrypt del dueño, legible por cualquiera que tuviera el enlace, porque `itsdangerous` firma pero no cifra. Ahora viaja una huella irreversible. 352 tests. |

@@ -86,7 +86,7 @@ perder su historial. Ahora hay Alembic (`alembic upgrade head`, aplicado solo en
 desde `render.yaml`) y un test que falla si los modelos y las migraciones se desincronizan.
 Ya se estrenó agregando la columna del correo de alertas, con los 1915 taps de demo intactos.
 
-### Calidad — Tests · ✅ 337 tests
+### Calidad — Tests · ✅ 352 tests
 `pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push, sobre SQLite y Postgres
 (`.github/workflows/tests.yml`). Protegen sobre todo la métrica de conversión —que ya se rompió
 una vez en silencio— y la regla de no reintroducir el filtrado de reseñas.
@@ -194,7 +194,7 @@ El `.env` local tiene `BASE_URL=http://localhost:8000` y un `ADMIN_PASSWORD_HASH
 
 Funciona de punta a punta, el usuario probó los 27 puntos de la ruta manual y **ya no queda
 ninguna decisión suya pendiente en la parte de código**: respondió el bloque B entero ("todas las
-recomendadas") y está implementado. 337 tests en verde.
+recomendadas") y está implementado. 352 tests en verde.
 
 Lo construido en esta jornada:
 
@@ -203,17 +203,24 @@ Lo construido en esta jornada:
   sesión del panel de 7 días y logout por POST.
 - **Recuperación de contraseña por el propio dueño** (9.5), con enlace de un solo uso, limitador
   propio y una respuesta que no delata qué correos son de clientes.
+- **Correo de bienvenida al dar de alta** (9.6): el dueño recibe un enlace y elige su propia
+  contraseña. Ya no hay que dictarle una por teléfono. Si no hay SMTP, el alta vuelve al camino
+  de antes e imprime la clave, para no dejar al cliente sin poder entrar.
 
 ## Lo que se puede construir sin esperar a nadie
 
-1. **Correo de bienvenida al dar de alta** (9.6). Queda a un paso: el mecanismo del enlace
-   firmado ya existe, así que es llamarlo desde el alta y mandar el correo en vez de imprimir la
-   contraseña en la consola. Así la clave nunca viaja en texto plano ni hay que dictarla.
-2. **Zona horaria por negocio** (9.7). No antes de tener un cliente fuera de Chile.
-3. **Módulo 3, sentimiento** (9.10). Sigue siendo la prioridad más baja.
+Se acabó lo que tenía sentido hacer sin el usuario. Lo que queda en la lista de desarrollos son
+cosas que no corresponde adelantar:
 
-Nada de esto es urgente. Lo que de verdad falta ahora está en la lista de abajo, y es del
-usuario.
+1. **Módulo 2, sincronización con Google Business Profile** (9.3). Es el módulo que *prueba* el
+   número que se vende, pero no se puede empezar hasta que Google apruebe el acceso a la API, y
+   esa solicitud la tiene que hacer el usuario.
+2. **Zona horaria por negocio** (9.7). Un día de trabajo, y no antes de que exista un cliente
+   fuera de Chile.
+3. **Módulo 3, sentimiento** (9.10). Sigue siendo la prioridad más baja: con 20 reseñas al mes un
+   dueño las lee.
+
+Lo que de verdad falta ahora está en la lista de abajo, y es del usuario.
 
 ## Bloqueado esperando al usuario, por orden de importancia
 

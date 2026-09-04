@@ -20,7 +20,7 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, an operator admin panel, 337 tests.
+report with automatic delivery, client onboarding, migrations, an operator admin panel, 352 tests.
 Demo panel: `demo@cafe.cl` — the user changed the password while testing, so re-issue it with
 `python -m scripts.new_client --reset-password 4VB6_OoK` rather than assuming the documented one.
 Nothing has been deployed or published — the user has not bought the domain yet, and printing a
@@ -132,7 +132,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 337 tests
+pytest -q                       # 352 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
@@ -277,10 +277,14 @@ emailed and open without a login carry an `itsdangerous` signature instead of li
 The report link signs `token:AAAA-MM` and lasts 90 days, so a forwarded email exposes *one
 month* rather than a venue's whole history of customer phone numbers and complaints — the
 zero-friction decision was about not asking the owner for a password, never about permanence.
-The password-recovery link lasts an hour and **includes the current password hash in the
-payload**, which makes it single-use with no table and no migration: changing the password
-invalidates it. The salt separates the two domains, so a leaked report link is not a key to the
-panel. Everything that emits a report URL must go through `url_informe`/`ruta_informe` — a
+The account links (welcome on onboarding, password recovery) carry an irreversible **fingerprint
+of the current password hash**, which makes them single-use with no table and no migration:
+changing the password invalidates them. It is a fingerprint and never the hash itself because
+`itsdangerous` signs but does not encrypt — a token's payload is readable by anyone holding the
+link, so the hash inside would hand a forwarded email the owner's scrypt digest to attack offline.
+The salt sets each link's lifetime: recovery lasts an hour (the owner asked for it a minute ago),
+the welcome link a week (it arrives unannounced and may be opened the next day), and a leaked
+report link is not a key to the panel. Everything that emits a report URL must go through `url_informe`/`ruta_informe` — a
 hand-written `/informe/{token}` is a dead link. `/informe` still opens unsigned for a logged-in
 owner or operator: it would be absurd for someone's own report to expire while they are inside
 their panel, and an unauthorized request answers **403 whether or not the token exists**, so the

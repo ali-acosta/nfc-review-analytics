@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import Business, Feedback, Placement, Tap, new_token
-from app.services import admin_auth, enlaces, logo as logo_service, metrics
+from app.services import admin_auth, correos, enlaces, logo as logo_service, metrics
 from app.services import report as report_service
 from app.services.auth import generate_password, hash_password
 from app.services.notify import notify
@@ -281,8 +281,15 @@ async def crear(
     db.commit()
     db.refresh(business)
 
-    # La clave se muestra UNA vez, en la pantalla siguiente. No se guarda en la
-    # sesión ni se pasa por la URL, donde quedaría en el historial del navegador.
+    # Si el correo de bienvenida sale, el dueño elige su propia contraseña desde
+    # el enlace y la generada aquí no se le muestra a nadie: deja de existir en
+    # la práctica. Se genera igual para que la cuenta nunca quede sin clave, que
+    # es lo que permitiría entrar sin contraseña.
+    avisado = bool(business.login_email) and await correos.enviar_bienvenida(business)
+
+    # Si no salió, la clave se muestra UNA vez, en la pantalla siguiente. No se
+    # guarda en la sesión ni se pasa por la URL, donde quedaría en el historial
+    # del navegador.
     return templates.TemplateResponse(
         request,
         "admin_creado.html",
@@ -291,7 +298,8 @@ async def crear(
             "placements": db.scalars(
                 select(Placement).where(Placement.business_id == business.id).order_by(Placement.id)
             ).all(),
-            "password": password,
+            "password": "" if avisado else password,
+            "avisado": avisado,
             "avisos": _avisos_de_url(google_url.strip()) + ([aviso_logo] if aviso_logo else []),
             "base": _base(),
             "enlace_informe": _enlace_informe(business),
