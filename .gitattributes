@@ -1,0 +1,23 @@
+# Finales de línea, fijados de una vez.
+#
+# Antes de esto el repositorio los mezclaba sin ninguna regla: los módulos de
+# app/ solían ser CRLF y los de tests/ y scripts/ LF, según con qué herramienta
+# se hubiera creado cada archivo. El síntoma no era cosmético: bastaba editar un
+# archivo con un script en Windows para que se reescribiera entero y un cambio
+# de tres líneas apareciera en git como 500. Eso hace inservibles el `git diff`,
+# el `git blame` y la revisión de un cambio antes de commitearlo.
+#
+# `text=auto` guarda todo con LF en el repositorio, que es lo que espera el
+# servidor (Linux). `eol=lf` lo fija también en la copia de trabajo, para que no
+# dependa de la configuración de git de quien clone: sin eso, un colaborador con
+# core.autocrlf=true volvería a introducir la mezcla sin darse cuenta.
+* text=auto eol=lf
+
+# El PDF con la visión de producto. Git lo detecta solo, pero declararlo evita
+# cualquier intento de "normalizarlo" y corromperlo.
+*.pdf binary
+
+# Por si algún día se versiona un logo o un QR de ejemplo.
+*.png binary
+*.jpg binary
+*.ico binary
