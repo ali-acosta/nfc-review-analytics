@@ -32,7 +32,8 @@
 
 <section>
   <h2>Datos del cliente</h2>
-  <form method="post" action="/admin/{{ business.dashboard_token }}/editar" class="formulario">
+  <form method="post" action="/admin/{{ business.dashboard_token }}/editar" class="formulario"
+        enctype="multipart/form-data">
     <label>
       Nombre
       <input type="text" name="nombre" value="{{ business.name }}" required />
@@ -51,6 +52,41 @@
       Chat de Telegram
       <input type="text" name="telegram" value="{{ business.telegram_chat_id }}" />
     </label>
+    <fieldset class="grupo">
+      <legend>Personalización de la página</legend>
+      <p class="ayuda grupo-intro">
+        Lo que ve el cliente del local al tocar la placa.
+        <a href="/r/{{ placements[0].token }}" target="_blank">Ver cómo queda</a>
+      </p>
+
+      <label>
+        Logo del local
+        {% if business.logo_data %}
+        <span class="logo-actual">
+          <img src="/r/{{ placements[0].token }}/logo.png" alt="Logo actual" />
+          <span class="ayuda">Actual: {{ logo }}</span>
+        </span>
+        {% endif %}
+        <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" />
+        <span class="ayuda">
+          Subir uno nuevo reemplaza el anterior. Dejarlo vacío no cambia nada.
+        </span>
+      </label>
+
+      {% if business.logo_data %}
+      <label class="casilla">
+        <input type="checkbox" name="quitar_logo" value="1" />
+        Quitar el logo actual y volver a la página sin marca
+      </label>
+      {% endif %}
+
+      <label>
+        Mensaje de bienvenida
+        <input type="text" name="mensaje" maxlength="300" value="{{ business.welcome_message }}"
+               placeholder="¡Gracias por visitarnos! Tu opinión nos ayuda muchísimo." />
+      </label>
+    </fieldset>
+
     <button type="submit" class="btn btn-primario">Guardar cambios</button>
   </form>
 </section>

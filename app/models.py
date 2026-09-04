@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, TypeDecorator
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, LargeBinary, String, TypeDecorator
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -70,6 +70,18 @@ class Business(Base):
     # porque un dueño de pyme revisa su correo, no necesariamente Telegram.
     telegram_chat_id: Mapped[str] = mapped_column(String(64), default="")
     alert_email: Mapped[str] = mapped_column(String(255), default="")
+
+    # Personalización de la landing. Hace que la página se vea del local y no de
+    # una plataforma genérica, que es lo que un cliente que paga espera ver
+    # cuando le muestra el producto a su propio cliente.
+    #
+    # El logo va en la base y no en un archivo: el hosting no tiene disco
+    # persistente, así que un archivo desaparecería en el próximo despliegue.
+    # Se guarda ya reprocesado a PNG por app/services/logo.py, nunca los bytes
+    # que llegaron.
+    logo_data: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    welcome_message: Mapped[str] = mapped_column(String(300), default="")
+
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
 
     placements: Mapped[list["Placement"]] = relationship(back_populates="business")

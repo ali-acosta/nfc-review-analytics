@@ -14,7 +14,7 @@
 <p class="error" role="alert">{{ error }}</p>
 {% endif %}
 
-<form method="post" action="/admin/nuevo" class="formulario">
+<form method="post" action="/admin/nuevo" class="formulario" enctype="multipart/form-data">
   <label>
     Nombre del negocio
     <input type="text" name="nombre" value="{{ datos.nombre or '' }}" required autofocus
@@ -56,6 +56,33 @@
     Chat de Telegram (opcional)
     <input type="text" name="telegram" value="{{ datos.telegram or '' }}" placeholder="123456789" />
   </label>
+
+  <fieldset class="grupo">
+    <legend>Personalización de la página (opcional)</legend>
+    <p class="ayuda grupo-intro">
+      Es lo que ve el cliente del local al tocar la placa. Con el logo y un mensaje propio la
+      página se ve del negocio y no de una plataforma cualquiera. Se puede dejar en blanco ahora y
+      agregarlo después desde la ficha.
+    </p>
+
+    <label>
+      Logo del local
+      <input type="file" name="logo" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" />
+      <span class="ayuda">
+        PNG, JPG, WEBP, GIF o BMP, hasta 3 MB. Se reduce y se convierte solo, así que no importa
+        que venga grande. Un PNG con fondo transparente es lo que mejor queda.
+      </span>
+    </label>
+
+    <label>
+      Mensaje de bienvenida
+      <input type="text" name="mensaje" maxlength="300" value="{{ datos.mensaje or '' }}"
+             placeholder="¡Gracias por visitarnos! Tu opinión nos ayuda muchísimo." />
+      <span class="ayuda">
+        Reemplaza el texto bajo el nombre del negocio. Si se deja vacío se usa el de ejemplo.
+      </span>
+    </label>
+  </fieldset>
 
   <button type="submit" class="btn btn-primario">Crear cliente</button>
 </form>

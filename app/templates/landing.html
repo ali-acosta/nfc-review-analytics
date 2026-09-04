@@ -9,8 +9,13 @@
 </head>
 <body>
   <main class="card">
+    {% if tiene_logo %}
+    <img class="logo" src="/r/{{ placement.token }}/logo.png" alt="{{ business.name }}" />
+    {% endif %}
     <h1>{{ business.name }}</h1>
-    <p class="subtitle">¡Gracias por visitarnos! Tu opinión nos ayuda muchísimo.</p>
+    <p class="subtitle">
+      {{ business.welcome_message or '¡Gracias por visitarnos! Tu opinión nos ayuda muchísimo.' }}
+    </p>
 
     <!-- Un solo click hasta Google, para todos. Sin filtros ni pasos previos:
          cada click intermedio pierde clientes, y segmentar por calificación

@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request, Response
@@ -113,7 +114,14 @@ def landing(token: str, request: Request, db: Session = Depends(get_db)):
     response = templates.TemplateResponse(
         request,
         "landing.html",
-        {"business": placement.business, "placement": placement},
+        {
+            "business": placement.business,
+            "placement": placement,
+            # Se pasa como bandera y no el contenido: el logo lo sirve su
+            # propia ruta, cacheable, en vez de engordar cada carga de la
+            # página con la imagen incrustada.
+            "tiene_logo": placement.business.logo_data is not None,
+        },
     )
     _set_session_cookie(response, session_id)
     return response
@@ -200,7 +208,13 @@ async def submit_feedback(
     # y la conversión quede contada: quien tuvo un problema, lo dijo y AUN ASÍ
     # fue a dejar su reseña es justamente el caso que más vale la pena medir.
     response = templates.TemplateResponse(
-        request, "feedback_thanks.html", {"business": business, "placement": placement}
+        request,
+        "feedback_thanks.html",
+        {
+            "business": business,
+            "placement": placement,
+            "tiene_logo": business.logo_data is not None,
+        },
     )
     _set_session_cookie(response, session_id)
     return response
@@ -210,3 +224,33 @@ async def submit_feedback(
 def qr_code(token: str, db: Session = Depends(get_db)):
     _get_placement_or_404(db, token)
     return Response(content=qr_png_bytes(token), media_type="image/png")
+
+
+@router.get("/r/{token}/logo.png")
+def logo(token: str, request: Request, db: Session = Depends(get_db)):
+    """Sirve el logo del negocio de esta placa.
+
+    Se pide por el token de la placa y no por el del negocio: el token de placa
+    ya es público (está pegado en la mesa), mientras que el del negocio abre su
+    informe. Un `<img>` filtra su URL en cualquier lado, así que no puede llevar
+    el token bueno.
+
+    Lleva ETag porque un logo cambia casi nunca y esto se pide en cada visita: sin
+    él, cada cliente que toca la placa vuelve a descargarlo. Con ETag el navegador
+    pregunta y recibe un 304 vacío, y si el dueño lo cambia el hash cambia y se
+    actualiza solo.
+    """
+    placement = _get_placement_or_404(db, token)
+    datos = placement.business.logo_data
+    if not datos:
+        raise HTTPException(status_code=404, detail="Este negocio no tiene logo")
+
+    etag = '"' + hashlib.sha256(datos).hexdigest()[:32] + '"'
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304)
+
+    return Response(
+        content=datos,
+        media_type="image/png",
+        headers={"ETag": etag, "Cache-Control": "public, max-age=3600"},
+    )

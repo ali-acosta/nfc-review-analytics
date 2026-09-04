@@ -280,3 +280,49 @@ code.clave {
 }
 .peligro h2 { border-bottom-color: rgba(154, 59, 44, 0.3); color: var(--alerta); }
 .btn-peligro { background: var(--alerta); color: #fff; }
+
+/* ---- agrupación de campos ---- */
+.grupo {
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 16px 18px 4px;
+  margin: 0 0 20px;
+  max-width: 560px;
+  background: var(--superficie);
+}
+.grupo legend {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--apagado);
+  font-weight: 600;
+  padding: 0 6px;
+}
+.grupo-intro { margin-top: 0; }
+.grupo input[type="file"] {
+  padding: 8px;
+  background: var(--fondo);
+  font-size: 0.85rem;
+}
+.casilla {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  color: var(--texto) !important;
+}
+.casilla input {
+  display: inline-block !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+.logo-actual {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  padding: 10px;
+  background: var(--fondo);
+  border-radius: 6px;
+}
+.logo-actual img { max-height: 48px; max-width: 140px; object-fit: contain; }
+.logo-actual .ayuda { margin: 0; }

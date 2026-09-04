@@ -37,6 +37,16 @@ body {
   box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
 }
 
+/* Logo del local. Alto fijo y ancho automático para que un logo apaisado y
+   uno cuadrado ocupen lo mismo verticalmente y la página no salte. */
+.logo {
+  display: block;
+  max-height: 72px;
+  max-width: 70%;
+  margin: 0 auto 16px;
+  object-fit: contain;
+}
+
 h1 {
   font-size: 1.5rem;
   margin: 0 0 8px;

@@ -20,7 +20,7 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, an operator admin panel, 237 tests. Demo panel:
+report with automatic delivery, client onboarding, migrations, an operator admin panel, 264 tests. Demo panel:
 `demo@cafe.cl` / `demo1234`. Nothing has been deployed or published — the user has not bought the
 domain yet, and printing a plaque with a temporary URL is the one irreversible mistake to avoid.
 
@@ -113,7 +113,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 237 tests
+pytest -q                       # 264 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
@@ -212,6 +212,18 @@ Beyond mirroring the CLI it surfaces what the CLI could not: **days since the la
 
 It is Jinja2 over FastAPI rather than Dash — these are forms, not charts — so it needs no WSGI mount
 and keeps the strict CSP. All of its CSS lives in `static/admin.css` for that reason.
+
+**Per-client branding** ([app/services/logo.py](app/services/logo.py)): the landing carries the
+business's own logo and welcome message, so the page the venue's customer sees belongs to the
+venue rather than to a generic platform. **The logo lives in the database, not on disk** — the
+host has no persistent disk, so a file would vanish on the next deploy and the client's logo
+would disappear with nobody having touched anything. Uploads are never stored as received:
+Pillow reopens, downscales and re-encodes to PNG, which proves it is really an image, kills
+polyglot files, and strips EXIF (a photo can carry the venue's coordinates). SVG is rejected
+outright since it is XML and can carry scripts. The image is served from `/r/{token}/logo.png`,
+keyed by the *placement* token and never the dashboard one, because an `<img>` URL leaks
+everywhere and the placement token is already public on the table; it carries an ETag because a
+logo almost never changes and this is fetched on every single tap.
 
 **Landing** ([app/templates/landing.html](app/templates/landing.html)): server-rendered Jinja2 +
 a few lines of vanilla JS, no build step, so the whole product deploys as one Python process.

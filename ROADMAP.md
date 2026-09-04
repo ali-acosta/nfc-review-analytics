@@ -81,7 +81,7 @@ perder su historial. Ahora hay Alembic (`alembic upgrade head`, aplicado solo en
 desde `render.yaml`) y un test que falla si los modelos y las migraciones se desincronizan.
 Ya se estrenó agregando la columna del correo de alertas, con los 1915 taps de demo intactos.
 
-### Calidad — Tests · ✅ 237 tests
+### Calidad — Tests · ✅ 264 tests
 `pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push, sobre SQLite y Postgres
 (`.github/workflows/tests.yml`). Protegen sobre todo la métrica de conversión —que ya se rompió
 una vez en silencio— y la regla de no reintroducir el filtrado de reseñas.
@@ -107,6 +107,12 @@ criterio: en las páginas públicas se degrada la métrica pero **nunca** la exp
 clientes de un local comparten el WiFi y por tanto la IP—, mientras que en el login sí se bloquea
 de verdad contra fuerza bruta. Se sumaron cabeceras de endurecimiento y una CSP estricta en las
 páginas públicas; `Referrer-Policy` evita filtrarle a Google la URL con el token de la placa.
+
+### Producto — Personalización por cliente · ✅ Hecho
+La landing lleva el logo del local y un mensaje propio, configurables desde el panel al dar de
+alta o después. Deja de verse como una plataforma genérica y pasa a ser la página del negocio,
+que es buena parte de lo que un cliente cree estar comprando. El logo se guarda en la base y no
+como archivo porque el hosting no tiene disco persistente.
 
 ### Producto — Uso diario · ✅ Resuelto
 La bandeja de quejas tiene estado (pendiente/atendida, con reapertura) y ordena las pendientes

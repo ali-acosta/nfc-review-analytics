@@ -9,6 +9,9 @@
 </head>
 <body>
   <main class="card">
+    {% if tiene_logo %}
+    <img class="logo" src="/r/{{ placement.token }}/logo.png" alt="{{ business.name }}" />
+    {% endif %}
     <h1>¡Gracias!</h1>
     <p class="subtitle">
       Tu comentario fue enviado directamente al equipo de {{ business.name }}.

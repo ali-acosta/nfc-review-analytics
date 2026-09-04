@@ -23,7 +23,7 @@ privadas y los enlaces de toda la cartera.
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import delete, func, select
@@ -32,7 +32,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import Business, Feedback, Placement, Tap, new_token
-from app.services import admin_auth, metrics
+from app.services import admin_auth, logo as logo_service, metrics
 from app.services.auth import generate_password, hash_password
 from app.services.notify import notify
 from app.services.ratelimit import client_ip, login_limiter
@@ -72,6 +72,20 @@ def _avisos_de_url(url: str) -> list[str]:
     if not any(p in url for p in KNOWN_PATTERNS):
         return ["El link no se parece a un enlace de reseñas de Google (algo tipo https://g.page/r/…/review)."]
     return []
+
+
+async def _leer_logo(archivo: UploadFile | None) -> tuple[bytes | None, str]:
+    """Procesa el logo subido. Devuelve (datos, aviso).
+
+    Nunca lanza: un logo mal subido no puede impedir que se dé de alta a un
+    cliente ni que se guarden sus otros datos. Se avisa y se sigue.
+    """
+    if archivo is None or not archivo.filename:
+        return None, ""
+    try:
+        return logo_service.procesar(await archivo.read()), ""
+    except logo_service.LogoInvalido as exc:
+        return None, f"No se guardó el logo: {exc}"
 
 
 def _labels(texto: str) -> list[str]:
@@ -211,16 +225,19 @@ def nuevo_form(request: Request):
 
 
 @router.post("/nuevo", response_class=HTMLResponse, dependencies=[Depends(_exigir_sesion)])
-def crear(
+async def crear(
     request: Request,
     nombre: str = Form(...),
     google_url: str = Form(...),
     placas: str = Form(...),
     email: str = Form(""),
     telegram: str = Form(""),
+    mensaje: str = Form(""),
+    logo: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ):
-    datos = {"nombre": nombre, "google_url": google_url, "placas": placas, "email": email, "telegram": telegram}
+    datos = {"nombre": nombre, "google_url": google_url, "placas": placas,
+             "email": email, "telegram": telegram, "mensaje": mensaje}
     labels = _labels(placas)
 
     if not labels:
@@ -234,6 +251,7 @@ def crear(
     # La contraseña se genera solo si hay correo: sin correo no hay a quién
     # entregársela ni forma de que el dueño entre.
     password = generate_password() if email.strip() else ""
+    logo_data, aviso_logo = await _leer_logo(logo)
 
     business = Business(
         name=nombre.strip(),
@@ -242,6 +260,8 @@ def crear(
         login_email=email.strip(),
         telegram_chat_id=telegram.strip(),
         password_hash=hash_password(password) if password else "",
+        logo_data=logo_data,
+        welcome_message=mensaje.strip()[:300],
     )
     db.add(business)
     db.flush()
@@ -260,7 +280,7 @@ def crear(
                 select(Placement).where(Placement.business_id == business.id).order_by(Placement.id)
             ).all(),
             "password": password,
-            "avisos": _avisos_de_url(google_url.strip()),
+            "avisos": _avisos_de_url(google_url.strip()) + ([aviso_logo] if aviso_logo else []),
             "base": _base(),
         },
     )
@@ -285,6 +305,7 @@ def _ficha(request: Request, db: Session, business: Business, **extra):
     contexto = {
         "business": business,
         "placements": placements,
+        "logo": logo_service.descripcion(business.logo_data),
         "resumen": _resumen(db, business),
         "avisos": _avisos_de_url(business.google_review_url),
         "base": _base(),
@@ -301,13 +322,16 @@ def ficha(token: str, request: Request, db: Session = Depends(get_db)):
 
 
 @router.post("/{token}/editar", response_class=HTMLResponse, dependencies=[Depends(_exigir_sesion)])
-def editar(
+async def editar(
     token: str,
     request: Request,
     nombre: str = Form(...),
     google_url: str = Form(...),
     email: str = Form(""),
     telegram: str = Form(""),
+    mensaje: str = Form(""),
+    logo: UploadFile | None = File(None),
+    quitar_logo: str = Form(""),
     db: Session = Depends(get_db),
 ):
     business = _cliente_o_404(db, token)
@@ -316,6 +340,15 @@ def editar(
     business.google_review_url = google_url.strip()
     business.alert_email = email.strip()
     business.telegram_chat_id = telegram.strip()
+    business.welcome_message = mensaje.strip()[:300]
+
+    # Un logo nuevo reemplaza al anterior; no subir nada deja el que había. Sin
+    # esto, editar el correo borraría el logo sin que nadie lo pidiera.
+    logo_data, aviso_logo = await _leer_logo(logo)
+    if logo_data is not None:
+        business.logo_data = logo_data
+    elif quitar_logo:
+        business.logo_data = None
     # El correo del panel solo se asigna si no había: cambiarlo dejaría al dueño
     # sin poder entrar con la credencial que ya se le entregó.
     if not business.login_email and email.strip():
@@ -323,7 +356,7 @@ def editar(
     db.commit()
     db.refresh(business)
 
-    return _ficha(request, db, business, ok="Datos actualizados.")
+    return _ficha(request, db, business, ok=aviso_logo or "Datos actualizados.")
 
 
 @router.post("/{token}/placas", response_class=HTMLResponse, dependencies=[Depends(_exigir_sesion)])
