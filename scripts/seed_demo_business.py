@@ -10,6 +10,8 @@ from app.config import settings
 from app.database import SessionLocal, init_db
 from app.models import Business, Placement
 from app.services.auth import hash_password
+from app.services import enlaces
+from app.services import report as report_service
 from app.services.qrcode_gen import generate_qr_for_token, target_url
 
 DEMO_NAME = "Café Demo"
@@ -64,7 +66,10 @@ def seed() -> None:
         print(f"\nPanel del negocio: {base}/panel/login")
         print(f"  Correo: {DEMO_EMAIL}")
         print(f"  Clave:  {DEMO_PASSWORD}")
-        print(f"\nInforme mensual (enlace directo): {base}/informe/{business.dashboard_token}")
+        year, month = report_service.resolve_period(None)
+        # Firmado y por mes: el enlace a secas ya no abre nada.
+        print("\nInforme mensual (enlace directo, vale 90 días):")
+        print(f"  {enlaces.url_informe(business.dashboard_token, year, month)}")
         print(
             "\nOJO: BASE_URL debe apuntar al dominio definitivo ANTES de grabar chips o "
             "imprimir placas — la URL no se puede cambiar después."

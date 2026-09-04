@@ -31,10 +31,15 @@ Entrada con correo y contraseña (`/panel/login`), sin dependencias externas: `s
 biblioteca estándar y las cookies firmadas que ya trae Starlette. Se descartó Supabase Auth
 para no sumar un servicio de terceros donde la biblioteca estándar alcanza.
 El enlace del informe sigue siendo directo a propósito: se le manda por correo al propio dueño
-y exigir login en cada correo mensual haría fricción justo en la pieza de retención.
+y exigir login en cada correo mensual haría fricción justo en la pieza de retención. Lo que sí
+tiene es **vencimiento**: va firmado sobre `token:AAAA-MM`, vale 90 días y abre un solo mes, así
+que un correo reenviado deja de ser una llave permanente a los contactos y las quejas de los
+clientes finales del comercio.
 El dueño cambia su contraseña él mismo en `/panel/password` (se le pide la actual: si deja el
-panel abierto en el mostrador, nadie debería poder quedarse con la cuenta). El operador puede
-regenerarla con `--reset-password` si la pierde.
+panel abierto en el mostrador, nadie debería poder quedarse con la cuenta) y **la recupera solo**
+desde `/panel/recuperar`: un enlace firmado que le llega a su correo, vale una hora y muere al
+usarse. El operador conserva `--reset-password` para cuando no haya correo saliente. La sesión
+del panel dura 7 días y cerrarla es un POST, no un enlace que cualquiera pueda disparar.
 
 ### Módulo 4 — Alertas y reportes · ✅ Informe funcionando
 Es lo que sostiene la suscripción mes a mes: la alerta de queja tiene valor operativo diario y
@@ -81,7 +86,7 @@ perder su historial. Ahora hay Alembic (`alembic upgrade head`, aplicado solo en
 desde `render.yaml`) y un test que falla si los modelos y las migraciones se desincronizan.
 Ya se estrenó agregando la columna del correo de alertas, con los 1915 taps de demo intactos.
 
-### Calidad — Tests · ✅ 292 tests
+### Calidad — Tests · ✅ 337 tests
 `pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push, sobre SQLite y Postgres
 (`.github/workflows/tests.yml`). Protegen sobre todo la métrica de conversión —que ya se rompió
 una vez en silencio— y la regla de no reintroducir el filtrado de reseñas.
@@ -137,18 +142,27 @@ El día que se firme el primer cliente hay que pasar a una instancia siempre enc
 un cliente a $20/mes lo cubre 3 veces. No deformar la arquitectura para defender el $0.
 (Verificar las condiciones vigentes de los free tiers al momento de decidir: cambian seguido.)
 
-## Legal / privacidad
+## Legal / privacidad · ✅ Base cubierta
 
-El formulario privado recolecta datos personales (contacto + texto libre). Ya lleva un aviso
-mínimo en la landing. Antes de vender a clientes reales conviene revisar la Ley 21.719 de
-protección de datos (Chile) y definir quién es el responsable del tratamiento — el comercio o
-la plataforma.
+El formulario privado recolecta datos personales de terceros (contacto + texto libre): gente que
+no es cliente nuestra y que no tiene forma de pedir que la borren. Lo que hay hoy:
+
+- **Responsable del tratamiento: el comercio**; la plataforma es la encargada. Decidido por el
+  usuario el 2026-09-03, y es lo habitual y lo más defendible. Conviene confirmarlo con alguien
+  que sepa antes del primer cliente que pague.
+- **Plazo y finalidad**, que es lo que exige la Ley 21.719: el contacto se borra a los 6 meses,
+  automáticamente (`scripts/anonimizar_contactos.py`, agendado el día 1 de cada mes), y la
+  landing se lo avisa al cliente final. Se borra el contacto y no la queja: sin contacto ya no
+  identifica a nadie, y el comentario es el registro con el que el comercio trabaja.
+- **Los enlaces que llevan esos datos caducan**: el informe mensual vale 90 días y abre un solo
+  mes.
 
 ---
 
 # Próximos pasos
 
-*Estado al 2026-09-03, cierre de la jornada. Esta es la sección para leer primero al retomar.*
+*Estado al 2026-09-03, cierre de la segunda jornada. Esta es la sección para leer primero al
+retomar.*
 
 > Documentos que hay que leer antes de tocar código:
 > [docs/revision-tecnica-2026-09-03.md](docs/revision-tecnica-2026-09-03.md) (hallazgos, qué está
@@ -164,10 +178,11 @@ uvicorn app.main:app --reload
 
 | Qué | Dónde |
 |---|---|
-| Panel del comercio | `/panel/login` · `demo@cafe.cl` / `demo1234` |
+| Panel del comercio | `/panel/login` · `demo@cafe.cl` (el usuario cambió la clave probando) |
+| Recuperar la clave | `/panel/recuperar` — necesita SMTP para llegar; sin él lo dice y no finge |
 | Panel del operador | `/admin` · clave **`admin-de-prueba-1234`** (provisional, ver abajo) |
 | Landing de demo | `/r/ZTYFEMtc` (Café Demo, "Mesa 5") |
-| Informe de demo | `/informe/4VB6_OoK` |
+| Informe de demo | **ya no basta `/informe/4VB6_OoK`**: el enlace va firmado. Sácalo de `python -m scripts.new_client --listar`, o ábrelo con la sesión del panel iniciada. |
 
 Hay dos negocios en la base local: **Café Demo** (token `4VB6_OoK`, con ~1900 toques de historia y
 logo cargado) y **local3** (token `m0dyc-RA`), creado por el usuario probando el panel.
@@ -177,33 +192,28 @@ El `.env` local tiene `BASE_URL=http://localhost:8000` y un `ADMIN_PASSWORD_HASH
 
 ## Estado: el producto está terminado para validar
 
-Funciona de punta a punta y **el usuario probó los 27 puntos de la ruta manual, todos correctos**.
-La única falla que apareció fue el informe sin estilos, que resultó ser un bug real de CSP y ya está
-corregido. Quedan 292 tests en verde.
+Funciona de punta a punta, el usuario probó los 27 puntos de la ruta manual y **ya no queda
+ninguna decisión suya pendiente en la parte de código**: respondió el bloque B entero ("todas las
+recomendadas") y está implementado. 337 tests en verde.
 
-Lo construido en la última jornada, además de cerrar 27 hallazgos de la revisión técnica:
+Lo construido en esta jornada:
 
-- **Panel de administración del operador** en `/admin`: alta, edición, placas, contraseñas, rotación
-  del enlace del informe, hoja de placas, aviso de prueba, actividad por cliente y eliminación.
-- **Personalización por cliente**: logo y mensaje propios en la landing, y el logo también impreso
-  en la placa física.
-- **Revisión previa al despliegue** y **respaldo semanal automático**.
-
-## Lo único que bloquea seguir avanzando en código
-
-**Siete decisiones del usuario**, todas con recomendación escrita, en el bloque B de
-[docs/pendientes-del-usuario.md](docs/pendientes-del-usuario.md). Basta que responda
-"todas las recomendadas". Son: caducidad del enlace del informe, ocultar el contacto en el informe,
-texto del canal privado, borrado automático de contactos antiguos, responsable del tratamiento de
-datos, expiración de la sesión y logout por POST.
+- **Bloque B completo**: enlace del informe firmado y con vencimiento a 90 días (abre un solo
+  mes), texto neutro del canal privado, borrado automático de los contactos a los 6 meses,
+  sesión del panel de 7 días y logout por POST.
+- **Recuperación de contraseña por el propio dueño** (9.5), con enlace de un solo uso, limitador
+  propio y una respuesta que no delata qué correos son de clientes.
 
 ## Lo que se puede construir sin esperar a nadie
 
-1. **Recuperación de contraseña por el propio dueño** (9.5 de la revisión). Hoy, si la olvida, el
-   operador se la regenera y se la dicta. Requiere SMTP para llegar, pero se puede construir ya.
-2. **Correo de bienvenida al dar de alta** (9.6), con enlace para que el dueño cree su propia clave,
-   así la contraseña nunca viaja en texto plano ni hay que dictarla.
+1. **Correo de bienvenida al dar de alta** (9.6). Queda a un paso: el mecanismo del enlace
+   firmado ya existe, así que es llamarlo desde el alta y mandar el correo en vez de imprimir la
+   contraseña en la consola. Así la clave nunca viaja en texto plano ni hay que dictarla.
+2. **Zona horaria por negocio** (9.7). No antes de tener un cliente fuera de Chile.
 3. **Módulo 3, sentimiento** (9.10). Sigue siendo la prioridad más baja.
+
+Nada de esto es urgente. Lo que de verdad falta ahora está en la lista de abajo, y es del
+usuario.
 
 ## Bloqueado esperando al usuario, por orden de importancia
 
@@ -212,12 +222,16 @@ datos, expiración de la sesión y logout por POST.
 2. **Conseguir un enlace real de reseñas de Google**. Hoy los dos negocios tienen uno provisional,
    así que un visitante que toque la placa no llega a dejar reseña. `check_deploy` lo marca como
    bloqueante.
-3. **Solicitar acceso a la API de Google Business Profile**. Tarda semanas en aprobarse y no cuesta
+3. **Configurar el SMTP** (Brevo gratuito). Ya no sostiene solo la alerta de queja: también es
+   por donde el dueño recupera su contraseña. Sin él, esa función existe pero no sirve.
+4. **Solicitar acceso a la API de Google Business Profile**. Tarda semanas en aprobarse y no cuesta
    nada empezar; es lo que permitiría mostrar reseñas publicadas y no solo clics.
-4. Crear las cuentas de Neon, Brevo y Sentry, y desplegar.
-5. **Cambiar la clave del panel de administración**, que hoy es una de prueba escrita en una
+5. Crear las cuentas de Neon y Sentry, y desplegar. **Al cargar los secrets de GitHub, incluir
+   `SESSION_SECRET` con el mismo valor que el servidor**: con esa clave se firman los enlaces del
+   informe, y si difieren, el correo del día 1 sale con enlaces que el servidor rechaza.
+6. **Cambiar la clave del panel de administración**, que hoy es una de prueba escrita en una
    conversación: `python -m scripts.admin_password`.
-6. **Revocar los tokens de GitHub** pegados en el chat, y subir los 8 commits pendientes.
+7. **Revocar los tokens de GitHub** pegados en el chat, y subir los commits pendientes.
 
 ## Decisiones ya tomadas (no volver a abrirlas)
 
@@ -230,6 +244,10 @@ datos, expiración de la sesión y logout por POST.
 | Base de datos: **Neon, no Supabase**, porque Supabase pausa los proyectos gratuitos y un cliente frente a una placa que no carga es inaceptable. | Decidido, 2026-09-03 |
 | El logo se guarda en la base y no como archivo: el hosting no tiene disco persistente. | Decidido, 2026-09-03 |
 | El panel de administración no existe sin `ADMIN_PASSWORD_HASH`: responde 404, nunca queda abierto por olvido. | Decidido, 2026-09-03 |
+| El **responsable del tratamiento** de los datos de las quejas es **el comercio**; la plataforma es la encargada. | Confirmado por el usuario, 2026-09-03 |
+| El enlace del informe **caduca a los 90 días y abre un solo mes**. Sigue sin pedir login: la fricción cero era la decisión, no la permanencia. | Confirmado por el usuario, 2026-09-03 |
+| El contacto del cliente final **se queda en el informe**: llamar al cliente enojado es el valor del producto. | Confirmado por el usuario, 2026-09-03 |
+| Los contactos de las quejas se borran a los **6 meses desde que llegan** (no desde que se atienden: si no, una queja que nadie marca los guarda para siempre). | Decidido, 2026-09-03 |
 
 ## WhatsApp como canal de alertas — explicado, sin decidir
 

@@ -24,8 +24,13 @@
       Dejar reseña en Google
     </a>
 
+    <!-- Texto neutro a propósito. "¿Tuviste un problema?" no filtraba nada -el
+         botón de Google está arriba y es para todos- pero dirigía suavemente al
+         descontento hacia el canal privado, y Google endureció en 2026 la
+         detección automática de solicitud selectiva. La frase neutra quita la
+         ambigüedad sin cambiar el flujo. -->
     <button type="button" class="link-secondary" id="private-toggle">
-      ¿Tuviste un problema? Cuéntanos en privado
+      ¿Prefieres contárnoslo en privado?
     </button>
 
     <section id="private-panel" class="private-panel" hidden>
@@ -49,13 +54,14 @@
           <input type="text" name="contact" maxlength="255" placeholder="Teléfono o correo" />
         </label>
         <label>
-          Cuéntanos qué pasó
+          Cuéntanos cómo te fue
           <textarea name="message" rows="4" maxlength="2000" placeholder="Tu comentario..."></textarea>
         </label>
         <button type="submit" class="btn btn-secondary">Enviar en privado</button>
       </form>
       <p class="legal">
-        Usaremos lo que nos escribas solo para responderte y mejorar el servicio.
+        {{ business.name }} usará lo que nos escribas solo para responderte y mejorar su
+        servicio. Si dejas un contacto, se borra a los 6 meses.
       </p>
     </section>
   </main>

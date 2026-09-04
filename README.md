@@ -17,10 +17,13 @@ el comercio. Construido con herramientas open source y capas gratuitas.
   tasa de conversión sea defendible frente a un cliente.
 - **Panel del comercio** (`/panel/login`): entra con correo y contraseña. Visitas únicas, clicks
   a Google, conversión, conversión comparada por soporte, y buzón de quejas con estado
-  (pendiente/atendida) exportable a CSV. El dueño puede cambiar su contraseña él mismo.
-- **Informe mensual** (`/informe/{token}`): KPIs con comparación contra el mes anterior,
-  rendimiento por soporte, visitas por día y el detalle de las quejas recibidas. Listo para
-  imprimir o enviar. Es la pieza que sostiene la suscripción.
+  (pendiente/atendida) exportable a CSV. El dueño cambia su contraseña él mismo y **la recupera
+  solo** desde el login, con un enlace que le llega por correo.
+- **Informe mensual**: KPIs con comparación contra el mes anterior, rendimiento por soporte,
+  visitas por día y el detalle de las quejas recibidas. Listo para imprimir o enviar. Es la
+  pieza que sostiene la suscripción. Su enlace abre **sin contraseña**, como el de una factura,
+  pero va firmado: vale 90 días y abre un solo mes, así que un correo reenviado deja de ser una
+  llave permanente a los contactos de los clientes del comercio.
 - **Alertas por correo y/o Telegram** (opcional): cada comentario privado dispara una
   notificación por los canales que el negocio tenga configurados. El correo suele importar
   más: un dueño de pyme lo revisa a diario y puede no tener Telegram. Si no hay ninguno
@@ -88,8 +91,12 @@ python -m scripts.new_client --reset-password TOKEN
 ```
 
 Entrega los QR listos en `qrcodes/` y las **credenciales del panel** para el dueño. La
-contraseña se guarda con hash: se muestra una sola vez, anótala en ese momento. Si se pierde,
-se genera otra con `--reset-password`.
+contraseña se guarda con hash: se muestra una sola vez, anótala en ese momento. Si se pierde, el
+dueño la recupera solo desde "¿Olvidaste tu contraseña?" en el login (requiere SMTP configurado);
+`--reset-password` queda como salida para cuando no haya correo saliente.
+
+El enlace del informe que imprime va firmado y vale 90 días. Cópialo de ahí: la ruta a secas
+(`/informe/TOKEN`) ya no abre nada sin sesión.
 
 El script avisa si `BASE_URL` todavía apunta a `localhost`, porque esos QR solo funcionarían en
 tu equipo y no sirven para imprimir.
@@ -101,11 +108,12 @@ tu equipo y no sirven para imprimir.
 python -m scripts.generate_report --mes 2026-08
 ```
 
-También está en vivo en `/informe/{token}`, con link desde el panel.
+También está en vivo, con link desde el panel. El enlace para mandarle al dueño sale de
+`--listar` o del panel de administración: lleva firma y mes, y caduca a los 90 días.
 
 Para obtener el PDF hay dos caminos. El inmediato: abrir el informe en el navegador y usar
 **Imprimir → Guardar como PDF**, que da calidad idéntica porque la plantilla está hecha con CSS
-de impresión. El automático (`/informe/{token}/pdf`) usa WeasyPrint, que en Linux funciona sin
+de impresión. El automático (`/informe/{token}/pdf`, con la misma firma) usa WeasyPrint, que en Linux funciona sin
 configuración pero en Windows necesita instalar aparte el runtime de GTK3; mientras no esté, ese
 endpoint responde con instrucciones en vez de fallar.
 
@@ -173,9 +181,9 @@ pip install -r requirements-dev.txt
 pytest -q
 ```
 
-292 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
+337 tests. Cuidan sobre todo tres cosas: que la tasa de conversión siga siendo correcta, que las
 fechas se agrupen en hora local del negocio, y que nadie reintroduzca el filtrado de reseñas
-que viola las políticas de Google. Corren solos en cada push.
+que viola las políticas de Google. Corren solos en cada push, sobre SQLite y Postgres.
 
 ## Exportar o respaldar
 

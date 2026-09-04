@@ -135,10 +135,29 @@ def create_dash_app() -> Dash:
                     html.Span(
                         [
                             html.A("Cambiar contraseña", href="/panel/password", style={**LINK_STYLE, "color": "#6b7a76"}),
-                            html.A(
-                                "Cerrar sesión",
-                                href="/panel/logout",
-                                style={**LINK_STYLE, "color": "#6b7a76", "marginLeft": "16px"},
+                            # Formulario y no enlace: un logout por GET lo puede
+                            # disparar cualquier imagen o enlace de otra página y
+                            # dejar al dueño fuera de su panel sin que él haga
+                            # nada. Es molesto, no peligroso, pero cuesta cuatro
+                            # líneas evitarlo.
+                            html.Form(
+                                html.Button(
+                                    "Cerrar sesión",
+                                    type="submit",
+                                    style={
+                                        **LINK_STYLE,
+                                        "color": "#6b7a76",
+                                        "background": "none",
+                                        "border": "none",
+                                        "padding": "0",
+                                        "cursor": "pointer",
+                                        "font": "inherit",
+                                        "textDecoration": "underline",
+                                    },
+                                ),
+                                action="/panel/logout",
+                                method="post",
+                                style={"display": "inline", "marginLeft": "16px"},
                             ),
                         ]
                     ),

@@ -22,6 +22,8 @@ from sqlalchemy import delete, select
 
 from app.database import SessionLocal, init_db
 from app.models import Business, Feedback, Placement, Tap
+from app.services import enlaces
+from app.services import report as report_service
 
 # Cada soporte convierte distinto: es lo que hace que el informe tenga algo
 # accionable que decir ("la placa de la mesa rinde el doble que la boleta").
@@ -137,7 +139,8 @@ def seed(days: int, wipe: bool) -> None:
         print(f"  {real} visitas reales · {clicks} clicks a Google · {len(feedbacks)} quejas privadas")
         print(f"  {bots} visitas de bots (se excluyen de toda métrica)")
         print("\nPanel:   /panel/login  (demo@cafe.cl / demo1234)")
-        print(f"Informe: /informe/{business.dashboard_token}")
+        year, month = report_service.resolve_period(None)
+        print(f"Informe: {enlaces.ruta_informe(business.dashboard_token, year, month)}")
 
 
 if __name__ == "__main__":

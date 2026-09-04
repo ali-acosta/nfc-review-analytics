@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import pandas as pd
 
 from app.services import inbox, metrics
-from tests.conftest import add_visit
+from tests.conftest import add_visit, url_informe
 
 
 class TestChequeosDeSalud:
@@ -179,8 +179,10 @@ class TestRotacionDelEnlaceDelInforme:
 
         assert nuevo != anterior
         with TestClient(app) as c:
-            assert c.get(f"/informe/{anterior}").status_code == 404
-            assert c.get(f"/informe/{nuevo}").status_code == 200
+            # El token viejo ya no existe, así que ni siquiera con una firma
+            # recién emitida para él abre nada.
+            assert c.get(url_informe(anterior)).status_code == 404
+            assert c.get(url_informe(nuevo)).status_code == 200
 
 
 class TestEdicionDeClientes:

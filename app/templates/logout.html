@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cerrar sesión</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>¿Cerrar sesión?</h1>
+    <p class="subtitle">Tendrás que volver a entrar con tu correo y tu contraseña.</p>
+
+    <form method="post" action="/panel/logout" class="login-form">
+      <button type="submit" class="btn btn-primary">Cerrar sesión</button>
+    </form>
+    <a class="link-secondary" href="/dashboard/">Volver al panel</a>
+  </main>
+</body>
+</html>

@@ -32,7 +32,8 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models import Business, Feedback, Placement, Tap, new_token
-from app.services import admin_auth, logo as logo_service, metrics
+from app.services import admin_auth, enlaces, logo as logo_service, metrics
+from app.services import report as report_service
 from app.services.auth import generate_password, hash_password
 from app.services.notify import notify
 from app.services.ratelimit import client_ip, login_limiter
@@ -151,6 +152,17 @@ def _nombre_archivo(nombre: str) -> str:
 
 def _base() -> str:
     return settings.base_url.rstrip("/")
+
+
+def _enlace_informe(business: Business) -> str:
+    """Enlace del informe listo para copiar y mandarle al dueño.
+
+    Va firmado y con el mes explícito, igual que el que sale en el correo
+    mensual: si el operador copiara la ruta a secas, le estaría entregando un
+    enlace que el servidor rechaza.
+    """
+    year, month = report_service.resolve_period(None)
+    return enlaces.url_informe(business.dashboard_token, year, month, _base())
 
 
 # --------------------------------------------------------------------------- #
@@ -282,6 +294,7 @@ async def crear(
             "password": password,
             "avisos": _avisos_de_url(google_url.strip()) + ([aviso_logo] if aviso_logo else []),
             "base": _base(),
+            "enlace_informe": _enlace_informe(business),
         },
     )
 
@@ -309,6 +322,7 @@ def _ficha(request: Request, db: Session, business: Business, **extra):
         "resumen": _resumen(db, business),
         "avisos": _avisos_de_url(business.google_review_url),
         "base": _base(),
+        "enlace_informe": _enlace_informe(business),
         "ok": None,
         "password_nueva": None,
     }

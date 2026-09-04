@@ -116,3 +116,16 @@ def add_visit(business_id, placement_id, *, converts=False, when=None, is_bot=Fa
         later = (when + timedelta(seconds=20)) if when else None
         add_tap(business_id, placement_id, "went_to_google", session_id=session_id, when=later, is_bot=is_bot)
     return session_id
+
+
+def url_informe(token: str, mes: str | None = None) -> str:
+    """La URL firmada del informe, que es la única que abre.
+
+    Los tests usaban la ruta a secas; desde que el enlace lleva firma con
+    vencimiento (90 días, un solo mes), esa ruta responde 403. Este ayudante
+    evita repetir el armado en cada test y deja el mes explícito a la vista.
+    """
+    from app.services import enlaces, report as report_service
+
+    year, month = report_service.resolve_period(mes)
+    return enlaces.ruta_informe(token, year, month)

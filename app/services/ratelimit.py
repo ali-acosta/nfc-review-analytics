@@ -107,3 +107,12 @@ login_limiter = RateLimiter(max_hits=8, window_seconds=900, name="login")
 # podría convertir esa alerta en una molestia constante. 10 cada 10 minutos deja
 # pasar hasta un mal día real en el local y corta el abuso.
 feedback_limiter = RateLimiter(max_hits=10, window_seconds=600, name="comentarios")
+
+# Recuperación de contraseña. Cada intento acertado dispara un correo, así que
+# sin techo el formulario sería un cañón de correos gratis contra la casilla de
+# un cliente (y contra la cuota diaria del proveedor SMTP). Cinco cada quince
+# minutos alcanza para quien de verdad se equivocó al escribir su correo.
+#
+# Limitador propio y no el del login: castigar la misma cuenta por pedir su
+# clave dejaría al dueño sin poder entrar justo cuando ya no puede entrar.
+recovery_limiter = RateLimiter(max_hits=5, window_seconds=900, name="recuperación")

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Elige tu contraseña</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>Elige tu contraseña</h1>
+    <p class="subtitle">Al guardarla entras directo al panel y este enlace deja de servir.</p>
+
+    {% if error %}
+    <p class="form-error" role="alert">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/panel/nueva-clave" class="login-form">
+      <input type="hidden" name="firma" value="{{ firma }}" />
+      <label>
+        Contraseña nueva
+        <input type="password" name="nueva" autocomplete="new-password" minlength="8"
+               required autofocus />
+      </label>
+      <label>
+        Repítela
+        <input type="password" name="repetir" autocomplete="new-password" minlength="8" required />
+      </label>
+      <button type="submit" class="btn btn-primary">Guardar y entrar</button>
+    </form>
+  </main>
+</body>
+</html>

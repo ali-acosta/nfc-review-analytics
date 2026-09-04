@@ -6,8 +6,13 @@
 # puede adjuntar aunque el servidor de la app no pueda generarlo.
 #
 # Requiere configurar en Settings → Secrets: DATABASE_URL, BASE_URL,
-# SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_FROM y, si se usa, TELEGRAM_BOT_TOKEN. Con la base en SQLite esto no funciona: necesita el
+# SESSION_SECRET, SMTP_HOST, SMTP_USER, SMTP_PASSWORD, SMTP_FROM y, si se usa,
+# TELEGRAM_BOT_TOKEN. Con la base en SQLite esto no funciona: necesita el
 # Postgres gestionado, que es accesible desde fuera del servidor.
+#
+# SESSION_SECRET tiene que ser LA MISMA que la del servidor web: con ella se
+# firman los enlaces del informe, y si aquí fuera otra, cada correo mensual
+# saldría con un enlace que el servidor rechaza.
 
 name: Informe mensual
 
@@ -48,6 +53,10 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           BASE_URL: ${{ secrets.BASE_URL }}
+          # Firma los enlaces del informe. Si no es idéntica a la del servidor,
+          # el correo sale con enlaces que el servidor no reconoce y el cliente
+          # ve "este enlace ya no sirve" el día 1 de cada mes.
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           # El correo es el canal principal: un dueño de pyme lo revisa a diario y
@@ -62,3 +71,22 @@ jobs:
           python -m scripts.send_reports \
             ${{ inputs.mes && format('--mes {0}', inputs.mes) || '' }} \
             ${{ inputs.dry_run && '--dry-run' || '' }}
+
+  # Trabajo aparte y no un paso más del envío: si la retención falla, tiene que
+  # verse como lo que es y no esconder (ni bloquear) el informe del mes.
+  retencion:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Borrar los contactos de quejas de más de 6 meses
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python -m scripts.anonimizar_contactos --aplicar

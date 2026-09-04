@@ -8,7 +8,7 @@ from app.database import SessionLocal
 from app.models import Business
 from app.services import metrics
 from app.services import report as report_service
-from tests.conftest import add_visit
+from tests.conftest import add_visit, url_informe
 
 KPI_RE = re.compile(r'kpi-label">([^<]+)</div>\s*<div class="kpi-value[^"]*">([^<]+)</div>')
 
@@ -100,13 +100,16 @@ class TestRutas:
         add_visit(negocio.id, negocio.mesa_id, converts=True,
                   when=datetime(2026, 8, 5, 12, tzinfo=timezone.utc))
 
-        respuesta = cliente.get(f"/informe/{negocio.token}?mes=2026-08")
+        respuesta = cliente.get(url_informe(negocio.token, "2026-08"))
 
         assert respuesta.status_code == 200
         assert negocio.nombre in respuesta.text
 
     def test_token_desconocido_da_404(self, cliente):
-        assert cliente.get("/informe/token-inventado").status_code == 404
+        """Con firma válida pero token inexistente: 404. Sin firma no se llega
+        hasta aquí —es 403 antes de mirar la base— para que la respuesta no
+        delate qué tokens son de clientes."""
+        assert cliente.get(url_informe("token-inventado")).status_code == 404
 
     def test_mes_mal_escrito_da_400(self, negocio, cliente):
         assert cliente.get(f"/informe/{negocio.token}?mes=agosto").status_code == 400
@@ -118,7 +121,7 @@ class TestRutas:
             db.commit()
             token_ajeno = otro.dashboard_token
 
-        respuesta = cliente.get(f"/informe/{token_ajeno}")
+        respuesta = cliente.get(url_informe(token_ajeno))
 
         assert respuesta.status_code == 200
         assert negocio.nombre not in respuesta.text
@@ -126,6 +129,7 @@ class TestRutas:
     def test_el_pdf_nunca_devuelve_error_de_servidor(self, negocio, cliente):
         """Con WeasyPrint disponible responde 200; sin sus librerías nativas,
         501 con instrucciones. Nunca un 500."""
-        respuesta = cliente.get(f"/informe/{negocio.token}/pdf")
+        firmada = url_informe(negocio.token).replace("?", "/pdf?")
+        respuesta = cliente.get(firmada)
 
         assert respuesta.status_code in (200, 501)

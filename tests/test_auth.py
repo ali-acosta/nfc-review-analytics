@@ -8,6 +8,7 @@ from app.main import app
 from app.middleware import BUSINESS_HEADER
 from app.models import Business
 from app.services.auth import generate_password, hash_password, verify_password
+from tests.conftest import url_informe
 
 CLAVE = "clave-de-prueba-123"
 
@@ -120,10 +121,48 @@ class TestAccesoAlPanel:
 
         with TestClient(app, follow_redirects=False) as c:
             c.post("/panel/login", data={"email": email, "password": clave})
-            c.get("/panel/logout")
+            c.post("/panel/logout")
             panel = c.get("/dashboard/")
 
         assert panel.status_code == 302
+
+    def test_el_panel_cierra_sesion_con_un_formulario(self):
+        """Se mira el layout de Dash y no el HTML servido: el panel se arma en
+        el navegador desde un JSON, así que un `assert` sobre la respuesta HTTP
+        no vería nunca este botón —ni notaría que volvió a ser un enlace—."""
+        from dash import html
+
+        from app.dashboard.dash_app import create_dash_app
+
+        def recorrer(nodo):
+            yield nodo
+            hijos = getattr(nodo, "children", None)
+            for hijo in hijos if isinstance(hijos, list) else [hijos] if hijos else []:
+                yield from recorrer(hijo)
+
+        nodos = list(recorrer(create_dash_app().layout))
+        formularios = [n for n in nodos if isinstance(n, html.Form) and n.action == "/panel/logout"]
+        enlaces_logout = [
+            n for n in nodos if isinstance(n, html.A) and getattr(n, "href", "") == "/panel/logout"
+        ]
+
+        assert len(formularios) == 1, "el panel no ofrece cerrar sesión por POST"
+        assert formularios[0].method == "post"
+        assert not enlaces_logout, "volvió el logout por GET, que cualquiera puede disparar"
+
+    def test_un_get_no_cierra_la_sesion(self, negocio):
+        """Con logout por GET, un `<img src=".../panel/logout">` en cualquier
+        página ajena dejaba al dueño fuera de su panel sin que él tocara nada.
+        El GET ahora solo muestra el botón."""
+        email, clave = _con_credenciales(negocio)
+
+        with TestClient(app, follow_redirects=False) as c:
+            c.post("/panel/login", data={"email": email, "password": clave})
+            visto = c.get("/panel/logout")
+            panel = c.get("/dashboard/")
+
+        assert visto.status_code == 200
+        assert panel.status_code == 200, "la sesión no debía cerrarse con un GET"
 
 
 class TestAislamientoEntreClientes:
@@ -166,7 +205,64 @@ class TestElInformeSigueSiendoEnlaceDirecto:
     def test_no_exige_login(self, negocio, cliente):
         """Decisión consciente: el enlace del informe se le manda por correo al
         propio dueño, como el enlace de una factura. Exigir login en cada correo
-        mensual haría fricción justo en la pieza que sostiene la retención."""
-        respuesta = cliente.get(f"/informe/{negocio.token}")
+        mensual haría fricción justo en la pieza que sostiene la retención.
+
+        Lo que sí cambió es que el enlace caduca: firma de 90 días y un solo
+        mes. Fricción cero para el dueño, y un correo reenviado deja de ser una
+        llave permanente a los contactos de sus clientes."""
+        respuesta = cliente.get(url_informe(negocio.token))
 
         assert respuesta.status_code == 200
+
+    def test_el_dueno_lo_abre_desde_su_panel_sin_firma(self, negocio):
+        """Dentro del panel el enlace va sin firmar: sería absurdo que a un
+        dueño con la sesión abierta se le caducara su propio informe."""
+        email, clave = _con_credenciales(negocio)
+
+        with TestClient(app) as c:
+            c.post("/panel/login", data={"email": email, "password": clave})
+            respuesta = c.get(f"/informe/{negocio.token}")
+
+        assert respuesta.status_code == 200
+
+    def test_sin_firma_y_sin_sesion_no_abre(self, negocio, cliente):
+        respuesta = cliente.get(f"/informe/{negocio.token}")
+
+        assert respuesta.status_code == 403
+
+    def test_la_firma_de_un_mes_no_abre_otro(self, negocio, cliente):
+        """Un enlace filtrado expone el mes que informaba, no la historia."""
+        firma = url_informe(negocio.token, "2026-08").split("firma=")[1]
+
+        respuesta = cliente.get(f"/informe/{negocio.token}?mes=2026-07&firma={firma}")
+
+        assert respuesta.status_code == 403
+
+    def test_la_firma_de_un_negocio_no_abre_la_de_otro(self, negocio, cliente):
+        with SessionLocal() as db:
+            otro = Business(name="Ajeno", google_review_url="https://g.page/r/CZ/review")
+            db.add(otro)
+            db.commit()
+            token_ajeno = otro.dashboard_token
+
+        firma = url_informe(negocio.token, "2026-08").split("firma=")[1]
+
+        respuesta = cliente.get(f"/informe/{token_ajeno}?mes=2026-08&firma={firma}")
+
+        assert respuesta.status_code == 403
+
+    def test_una_firma_vencida_no_abre(self, negocio, cliente, monkeypatch):
+        from app.services import enlaces
+
+        monkeypatch.setattr(enlaces, "VIGENCIA_INFORME", -1)
+        respuesta = cliente.get(url_informe(negocio.token, "2026-08"))
+
+        assert respuesta.status_code == 403
+
+    def test_el_enlace_vencido_no_delata_si_el_token_existe(self, negocio, cliente):
+        """Misma respuesta para un token real y uno inventado: si el real diera
+        403 y el falso 404, la página serviría para descubrir clientes."""
+        real = cliente.get(f"/informe/{negocio.token}")
+        falso = cliente.get("/informe/no-existe-esto")
+
+        assert real.status_code == falso.status_code == 403

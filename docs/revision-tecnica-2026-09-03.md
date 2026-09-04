@@ -580,8 +580,22 @@ buena: bajar CI y Render a 3.10. Lo importante es que coincidan.
 
 - [x] **Punto 1 RESUELTO 2026-09-03**: `scripts/new_client.py --rotar-token TOKEN` genera un
   enlace nuevo e invalida el anterior, con test.
-- [ ] Puntos 2 y 3 (enlace firmado con vencimiento, ocultar el contacto): **esperando decisión
-  del usuario** — son B1 y B2 en `docs/pendientes-del-usuario.md`.
+- [x] **Punto 2 RESUELTO 2026-09-03** (decisión B1 del usuario, "sí"). El enlace del informe
+  lleva firma `itsdangerous` sobre `token:AAAA-MM`, válida 90 días, en
+  `app/services/enlaces.py`. Fricción cero para el dueño: sigue abriendo desde el correo sin
+  login. Un enlace filtrado expone **un mes**, no la historia, y caduca. Sin firma responde 403
+  con una página que explica qué pasó, y responde **lo mismo exista o no el token**, para que la
+  página no sirva de oráculo de clientes. Excepción deliberada: con sesión del dueño (o del
+  operador) abre sin firma, porque sería absurdo que a alguien dentro de su panel se le caducara
+  su propio informe. Tests en `tests/test_auth.py::TestElInformeSigueSiendoEnlaceDirecto`.
+- [x] **Punto 3 DECIDIDO 2026-09-03** (decisión B2, "no"). El contacto se queda en el informe:
+  llamar al cliente enojado es el valor del producto. Se revisa si algún cliente lo objeta.
+
+**Riesgo que trajo el cambio, y su test**: la firma usa `SESSION_SECRET`, así que el envío
+mensual y el servidor web tienen que compartirla. El workflow de GitHub no la pasaba, y con
+claves distintas cada correo del día 1 habría salido con un enlace que el propio servidor
+rechaza. Es el mismo error que ya se cometió con SMTP, con otra cara.
+`tests/test_deploy.py::TestLaFirmaDeLosEnlacesLlegaAProduccion` lo cubre.
 
 **Dónde**: [app/routers/reports.py](../app/routers/reports.py); `Business.dashboard_token` no
 rota nunca; `?mes=` acepta cualquier período.
@@ -690,7 +704,10 @@ imprimir ambos, salir con 1 solo si hubo fallidos.
 
 ### M5 · Texto del canal privado en la landing
 
-- [ ] Decidido: ______
+- [x] **RESUELTO 2026-09-03** (decisión B3, "sí"). Ahora dice "¿Prefieres contárnoslo en
+  privado?" y el campo de texto "Cuéntanos cómo te fue".
+  `tests/test_flow.py::TestPoliticaDeGoogle::test_el_canal_privado_se_ofrece_en_terminos_neutros`
+  falla si la etiqueta vuelve a presuponer descontento.
 
 [app/templates/landing.html:22](../app/templates/landing.html#L22): "¿Tuviste un problema?
 Cuéntanos en privado". No es filtrado, el botón de Google está antes y para todos. Pero la
@@ -750,7 +767,11 @@ a disco, que es lo que el operador necesita para imprimir.
 
 ### M11 · `/panel/logout` responde a GET
 
-- [ ] Resuelto en: ______
+- [x] **RESUELTO 2026-09-03** (decisión B7, "sí"). Cerrar sesión es POST; el GET muestra un
+  botón en vez de un 405, que a quien tecleó la dirección le parecería un error del sistema. El
+  panel lo dispara con un `html.Form` de Dash. El test mira el **layout de Dash y no el HTML**:
+  el panel se arma en el navegador desde un JSON, así que una aserción sobre la respuesta HTTP
+  no vería nunca ese botón ni notaría que volvió a ser un enlace.
 
 Un enlace en cualquier página cierra la sesión del dueño. Es molesto, no peligroso. Pasarlo a
 `POST` con un formulario mínimo en el panel.
@@ -785,7 +806,17 @@ cada refresco es una consulta completa (`I2`). Subir a 60 segundos y agregar un 
 
 ### M15 · Retención de datos personales de las quejas
 
-- [ ] Decidido: ______
+- [x] **RESUELTO 2026-09-03** (decisiones B4 y B5, "sí"). `scripts/anonimizar_contactos.py`,
+  agendado en el workflow mensual, borra el contacto y **solo** el contacto: la queja es el
+  registro operativo del comercio y las métricas no se mueven. La landing avisa el plazo.
+  Responsable del tratamiento: **el comercio**, con la plataforma como encargada.
+
+  **Se cambió el criterio de esta propuesta a propósito**: el plazo se cuenta desde que llegó la
+  queja, no desde que se marcó atendida. Contarlo desde la atención deja una política que el
+  dueño desactiva sin querer con solo no tocar el botón, y son justo las quejas abandonadas las
+  que más tiempo acumulan un teléfono. `--solo-atendidas` recupera el criterio original.
+  El script **simula por defecto**: es un borrado irreversible sobre datos de terceros.
+  Tests en `tests/test_retencion.py`.
 
 `Feedback.contact` guarda teléfonos y correos de clientes finales sin fecha de caducidad. La
 Ley 21.719 exige finalidad y plazo. Propuesta: un comando `scripts/anonimizar_contactos.py
@@ -796,7 +827,8 @@ plataforma.
 
 ### M16 · La sesión del panel no expira por inactividad
 
-- [ ] Decidido: ______
+- [x] **RESUELTO 2026-09-03** (decisión B6, "sí"). `max_age` de 7 días en `SessionMiddleware`,
+  con un test que mira la cookie del 302 del login y no solo la constante.
 
 `SessionMiddleware` deja la cookie 14 días por defecto. Para un panel que se deja abierto en
 un computador del local es mucho. Fijar `max_age` a 7 días es razonable; menos empieza a
@@ -868,8 +900,11 @@ en el próximo push (no hay Postgres en el equipo del usuario para probarlo ante
 
 ### Fase C · Producto y operación · ◑ **PARCIAL 2026-09-03**
 
-Hechos I1 y M1. Pendientes I6 y N1 (requieren instalar Python 3.12 y mover el repositorio, es
-trabajo del usuario) y las decisiones B1 a B7 de `docs/pendientes-del-usuario.md`.
+Hechos I1, M1 y **las siete decisiones B1–B7**, que el usuario respondió "todas las
+recomendadas" el 2026-09-03: I7.2 (enlace firmado), I7.3 (contacto se queda), M5 (texto neutro),
+M11 (logout por POST), M15 (retención de contactos), M16 (sesión de 7 días).
+Pendientes solo I6 y N1, que requieren instalar Python 3.12 y mover el repositorio: es trabajo
+del usuario.
 
 12. `I1` selector de período en el panel.
 13. `M1` Sentry integrado y desactivado, a la espera de la clave.
@@ -945,12 +980,32 @@ reacciona, y pagar WhatsApp cuando haya ingresos que lo cubran. Cuando llegue, e
 nuevo `app/services/whatsapp.py` con la misma firma que `send_email`, y una línea en
 `notify.py`. Nada más cambia.
 
-### 9.5 · Recuperación de contraseña por el propio dueño
+### 9.5 · Recuperación de contraseña por el propio dueño · ✅ HECHO 2026-09-03
 
-Hoy si el dueño olvida la clave, el operador corre `--reset-password` y se la dicta. Con diez
-clientes eso es una llamada por semana. Un enlace firmado con `itsdangerous` enviado a
-`login_email`, válido una hora, que lleve a un formulario de clave nueva. Reutiliza la
-plantilla `password.html`. Requiere SMTP funcionando (`C3`).
+`/panel/recuperar` pide el correo y manda a `login_email` un enlace firmado válido una hora;
+`/panel/nueva-clave` recibe la clave nueva y deja al dueño dentro del panel. El operador
+conserva `--reset-password` para cuando no haya correo.
+
+Cuatro decisiones que no son obvias:
+
+1. **La respuesta es idéntica exista o no la cuenta.** Un "ese correo no está registrado"
+   convertiría el formulario en un recorrido de la cartera de clientes, que es justo lo que el
+   mensaje único del login evita. El envío va en `BackgroundTask`, así que tampoco delata por
+   tiempo de respuesta.
+2. **El enlace muere al usarse**, sin tabla ni migración: la firma incluye el hash actual de la
+   contraseña, así que en cuanto cambia deja de validar.
+3. **Limitador propio** (`recovery_limiter`, 5 cada 15 minutos) y no el del login: cada acierto
+   dispara un correo, así que sin techo el formulario es un cañón gratis contra la casilla de un
+   cliente y contra la cuota diaria del proveedor; y castigar el login de una cuenta por pedir su
+   clave dejaría al dueño sin poder entrar justo cuando ya no puede entrar.
+4. **Sin SMTP, lo dice** (503) en vez de mostrar "te mandamos un correo" y dejar al dueño
+   esperando algo que no va a llegar nunca.
+
+Tests en `tests/test_recuperacion.py`. **Depende de SMTP para servir en producción**, que sigue
+siendo bloqueante en `check_deploy`.
+
+**9.6 (correo de bienvenida) queda a un paso**: el mecanismo del enlace ya existe, así que es
+llamar a `firmar_clave` desde el alta y mandar el correo en vez de imprimir la contraseña.
 
 ### 9.6 · Correo de bienvenida en el alta
 
@@ -1027,3 +1082,5 @@ mediano; se justifica con más de diez clientes o con un segundo operador.
 | 2026-09-03 | Personalización por cliente (logo y mensaje), logo también en la placa impresa, y rediseño de la hoja de fabricación. 273 tests. |
 | 2026-09-03 | Revisión previa al despliegue (`scripts/check_deploy.py`) y respaldo semanal automático (9.8). 292 tests. |
 | 2026-09-03 | **El usuario completó la ronda de pruebas manuales entera**: 27 de 27 puntos. Única falla encontrada, el informe sin estilos, ya corregida. Queda sin probar la experiencia en un teléfono real, bloqueada por la red. |
+| 2026-09-03 | **Bloque B cerrado** (B1–B7, "todas las recomendadas"): enlace del informe firmado y con vencimiento, texto neutro del canal privado, retención de contactos a 6 meses, sesión de 7 días, logout por POST. Cierra I7.2, I7.3, M5, M11, M15 y M16. 299 tests. |
+| 2026-09-03 | Recuperación de contraseña por el propio dueño (9.5), con su limitador propio y enlace de un solo uso. 337 tests. |

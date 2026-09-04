@@ -20,6 +20,8 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import SessionLocal, init_db
 from app.models import Business, Placement, new_token
+from app.services import enlaces
+from app.services import report as report_service
 from app.services.auth import generate_password, hash_password
 from app.services.qrcode_gen import generate_qr_for_token, target_url
 
@@ -82,9 +84,20 @@ def _show(business: Business, placements: list[Placement], password: str = "") -
         print("  [!] Sin correo no se crearon credenciales del panel.")
         print("      Asígnalas después con --reset-password.\n")
 
-    print(f"  Informe mensual (enlace directo, va por correo): {base}/informe/{business.dashboard_token}\n")
+    print("  Informe mensual (enlace directo, va por correo; vale 90 días y abre un solo mes):")
+    print(f"    {_enlace_informe(business)}\n")
     _warn_base_url()
     print()
+
+
+def _enlace_informe(business: Business) -> str:
+    """El enlace firmado del último mes cerrado, que es el que se le manda.
+
+    Los enlaces del informe caducan a los 90 días y abren un solo mes, así que
+    la ruta a secas ya no sirve: hay que entregar uno firmado.
+    """
+    year, month = report_service.resolve_period(None)
+    return enlaces.url_informe(business.dashboard_token, year, month)
 
 
 def _ask(prompt: str, required: bool = True) -> str:
@@ -101,14 +114,13 @@ def listar() -> None:
         if not businesses:
             print("No hay clientes todavía.")
             return
-        base = settings.base_url.rstrip("/")
         print(f"\n{LINE}\n  CLIENTES\n{LINE}\n")
         for b in businesses:
             count = len(db.scalars(select(Placement).where(Placement.business_id == b.id)).all())
             acceso = b.login_email if b.password_hash else "SIN CREDENCIALES (usa --reset-password)"
             print(f"  {b.name}  ({count} placa{'s' if count != 1 else ''})")
             print(f"    Entra como: {acceso}")
-            print(f"    Informe:    {base}/informe/{b.dashboard_token}\n")
+            print(f"    Informe:    {_enlace_informe(b)}\n")
 
 
 def agregar(token: str, labels: list[str]) -> None:
@@ -213,7 +225,7 @@ def rotar_token(token: str) -> None:
         base = settings.base_url.rstrip("/")
         print(f"\n  Enlace de informe nuevo para {business.name}\n")
         print(f"    Antes:  {base}/informe/{anterior}   (ya no funciona)")
-        print(f"    Ahora:  {base}/informe/{business.dashboard_token}")
+        print(f"    Ahora:  {_enlace_informe(business)}")
         print("\n    Mándaselo al dueño: el enlace anterior quedó invalidado.\n")
 
 

@@ -17,7 +17,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.database import SessionLocal
 from app.models import Business
-from app.services import metrics
+from app.services import enlaces, metrics
 
 TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "templates"
 
@@ -133,9 +133,12 @@ def build_summary_text(business: Business, year: int, month: int, base_url: str)
     if mejor:
         lineas += ["", f"Mejor soporte: {mejor['label']} ({mejor['conversion']:.0f}%)"]
 
+    # Enlace firmado: abre sin login, como hasta ahora, pero solo este mes y solo
+    # por 90 días. El informe lleva contactos y quejas de los clientes finales del
+    # comercio, y un correo reenviado no puede ser una llave permanente.
     lineas += [
         "",
-        f"Informe completo: {base_url.rstrip('/')}/informe/{business.dashboard_token}?mes={year}-{month:02d}",
+        f"Informe completo: {enlaces.url_informe(business.dashboard_token, year, month, base_url)}",
     ]
     return "\n".join(lineas)
 

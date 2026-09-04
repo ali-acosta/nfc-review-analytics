@@ -39,6 +39,20 @@ class TestPoliticaDeGoogle:
         assert "private-toggle" in html
         assert f'href="/r/{negocio.mesa}/go"' in html
 
+    def test_el_canal_privado_se_ofrece_en_terminos_neutros(self, negocio, visitante):
+        """El botón privado no puede presuponer que al visitante le fue mal.
+
+        No era filtrado —el botón de Google va antes y es para todos— pero
+        "¿Tuviste un problema?" dirigía suavemente al descontento hacia el canal
+        privado, y Google detecta la solicitud selectiva con herramientas
+        automáticas que leen la página, no las intenciones. La frase neutra no
+        cambia el flujo y quita la ambigüedad."""
+        html = visitante().get(f"/r/{negocio.mesa}").text
+        etiqueta = html.split('id="private-toggle"')[1].split("</button>")[0].lower()
+
+        for palabra in ("problema", "queja", "reclamo", "mal", "insatisf"):
+            assert palabra not in etiqueta, f"el canal privado presupone descontento: '{palabra}'"
+
 
 class TestRegistroDeVisitas:
     def test_llegar_registra_una_visita(self, negocio, visitante):

@@ -6,6 +6,7 @@ from app.database import SessionLocal
 from app.main import app
 from app.models import Business
 from app.services.auth import hash_password
+from tests.conftest import url_informe
 
 
 class TestCabeceras:
@@ -157,7 +158,7 @@ class TestElInformeSeVeComoDebe:
         return respuesta.headers["content-security-policy"]
 
     def test_la_politica_permite_los_estilos_que_el_informe_usa(self, negocio, cliente):
-        respuesta = cliente.get(f"/informe/{negocio.token}")
+        respuesta = cliente.get(url_informe(negocio.token))
         csp = self._csp(respuesta)
 
         usa_bloque_de_estilos = "<style>" in respuesta.text
@@ -172,7 +173,7 @@ class TestElInformeSeVeComoDebe:
     def test_el_informe_no_ejecuta_javascript(self, negocio, cliente):
         """La contrapartida de relajar los estilos: los scripts quedan prohibidos
         del todo. El informe no tiene ni una línea de JavaScript."""
-        respuesta = cliente.get(f"/informe/{negocio.token}")
+        respuesta = cliente.get(url_informe(negocio.token))
 
         assert "<script" not in respuesta.text.lower()
         assert "script-src 'none'" in self._csp(respuesta)
@@ -196,7 +197,7 @@ class TestElInformeSeVeComoDebe:
         add_visit(negocio.id, negocio.mesa_id, converts=True,
                   when=datetime(2026, 8, 5, 12, tzinfo=timezone.utc))
 
-        html = cliente.get(f"/informe/{negocio.token}?mes=2026-08").text
+        html = cliente.get(url_informe(negocio.token, "2026-08")).text
 
         assert 'class="fill"' in html or "class=\"fill" in html, "faltan las barras de conversión"
         assert "style=\"width:" in html, "las barras necesitan su ancho en línea"

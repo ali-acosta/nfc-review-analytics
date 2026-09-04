@@ -39,10 +39,14 @@ los de un local real.
 | Landing "Boleta" | http://localhost:8000/r/Ygb-AOFn |
 | Código inexistente (debe dar 404) | http://localhost:8000/r/no-existe-esto |
 | Panel del dueño | http://localhost:8000/panel/login |
-| Informe mensual | http://localhost:8000/informe/4VB6_OoK |
-| Informe de un mes concreto | http://localhost:8000/informe/4VB6_OoK?mes=2026-08 |
-| Informe de un mes vacío | http://localhost:8000/informe/4VB6_OoK?mes=2026-01 |
-| PDF (debe dar un mensaje claro, no un error) | http://localhost:8000/informe/4VB6_OoK/pdf |
+| Informe mensual | el enlace **firmado**: sácalo de `python -m scripts.new_client --listar` |
+| Informe sin firma (debe decir "este enlace ya no sirve") | http://localhost:8000/informe/4VB6_OoK |
+| PDF | el mismo enlace firmado, con `/pdf` antes del `?` |
+
+> **Cambió desde la ronda anterior**: el enlace del informe ya no es `/informe/TOKEN` a secas.
+> Lleva firma y mes, vale 90 días y abre un solo mes. Sin firma responde con una página que lo
+> explica — salvo que tengas la sesión del panel abierta, en cuyo caso abre igual, que es lo que
+> le pasa al dueño desde su propio panel.
 
 Credenciales del panel: **demo@cafe.cl** / **demo1234**
 
@@ -53,7 +57,7 @@ Esto es lo más importante de probar primero: es literalmente el producto.
 1. **[ ] Abre la landing de una placa:** http://localhost:8000/r/ZTYFEMtc (es "Mesa 5").
    Activa antes la vista de móvil con F12, para verla como la vería un cliente.
    - Qué deberías ver: una página con el nombre "Café Demo", un botón grande "Dejar reseña en
-     Google" y, más abajo, un enlace secundario "¿Tuviste un problema? Cuéntanos en privado".
+     Google" y, más abajo, un enlace secundario "¿Prefieres contárnoslo en privado?".
    - Qué NO deberías ver: ningún selector de estrellas antes del botón de Google. Si lo ves, es
      el bug más grave que existe (viola las políticas de Google), avísame de inmediato.
 
@@ -68,7 +72,7 @@ Esto es lo más importante de probar primero: es literalmente el producto.
      inflar las visitas ni las conversiones. Eso lo confirmamos después en el panel (paso 8).
 
 4. **[ ] Abre otra placa distinta** (http://localhost:8000/r/H1IwNJrX) **y esta vez haz clic en
-   "¿Tuviste un problema? Cuéntanos en privado".**
+   "¿Prefieres contárnoslo en privado?".**
    - Qué deberías ver: se despliega un formulario con una calificación opcional (1 a 5, o "prefiero
      no decirlo"), un campo de contacto opcional, y un cuadro de texto.
    - **[ ] Envíalo con un mensaje cualquiera, con y sin calificación, con y sin contacto.**
@@ -115,21 +119,44 @@ Esto es lo más importante de probar primero: es literalmente el producto.
       guardar, ya que es solo una prueba.
 
 12. **[ ] Cierra sesión y confirma que ya no puedes ver `/dashboard/`** sin volver a entrar.
+    - Ahora "Cerrar sesión" es un **botón**, no un enlace. Es a propósito: como enlace, cualquier
+      página ajena podía cerrarte la sesión sin que tú tocaras nada.
+
+12b. **[ ] En el login, entra a "¿Olvidaste tu contraseña?"** y pide un enlace para
+    `demo@cafe.cl`.
+    - Qué deberías ver **hoy**, sin SMTP configurado: un mensaje que dice claramente que la
+      recuperación por correo no está disponible y que le pidas la clave a quien te dio el
+      acceso. Eso es correcto: preferimos decirlo a mostrarte "te mandamos un correo" y dejarte
+      esperando algo que no va a llegar.
+    - Cuando configures Brevo (bloque C3), esta misma prueba tiene que terminar con un correo en
+      tu casilla con un enlace que dura una hora.
+
+12c. **[ ] Escribe un correo que no sea de ningún cliente** en ese mismo formulario.
+    - Qué deberías ver: **exactamente la misma respuesta** que con el correo real. Si alguna vez
+      responde distinto, el formulario sirve para averiguar quiénes son tus clientes.
 
 ## Parte 3 — El informe mensual
 
-13. **[ ] Visita `http://localhost:8000/informe/4VB6_OoK`** (ese es el "dashboard_token" del
-    negocio demo — es un enlace distinto al del panel, a propósito: este no pide contraseña,
-    porque es el que se manda por correo).
+13. **[ ] Consigue el enlace firmado** con `python -m scripts.new_client --listar` y ábrelo en
+    una **ventana privada** (para no llevar la sesión del panel).
     - Qué deberías ver: un informe con visitas, conversión, comparación contra el mes anterior,
-      rendimiento por soporte y el detalle de las quejas del mes.
+      rendimiento por soporte y el detalle de las quejas del mes. Sin pedir contraseña: es el
+      enlace que se manda por correo, como el de una factura.
 
-14. **[ ] Prueba con un mes específico:**
-    `http://localhost:8000/informe/4VB6_OoK?mes=2026-08`
+13b. **[ ] En esa misma ventana privada, abre `http://localhost:8000/informe/4VB6_OoK`** (sin
+    firma).
+    - Qué deberías ver: una página que dice "Este enlace ya no sirve" y te manda al panel. **No**
+      un error del servidor ni una página en blanco.
+    - Prueba también cambiarle el `mes=` al enlace firmado: también debe rechazarlo. Cada firma
+      abre un solo mes.
+
+14. **[ ] Prueba con un mes específico**: pídele el enlace de otro mes a
+    `python -m scripts.generate_report --mes 2026-08`, o entra al panel y abre el informe desde
+    ahí (con sesión no hace falta firma).
     - Compara los números con lo que viste en el panel (paso 8). No van a coincidir porque miden
       períodos distintos — es esperado, no es un bug nuevo.
 
-15. **[ ] Prueba un mes sin datos:** `?mes=2026-01`
+15. **[ ] Prueba un mes sin datos** (`2026-01`).
     - Qué deberías ver: el informe igual carga, con "0%" de conversión y un aviso de que no hay
       visitas, no una pantalla en blanco ni un error.
 
@@ -145,8 +172,8 @@ Esto es lo más importante de probar primero: es literalmente el producto.
       se ve bien impreso: la cabecera, las barras de conversión, el gráfico de columnas de
       visitas por día.
 
-17. **[ ] Prueba también la ruta directa del PDF:**
-    `http://localhost:8000/informe/4VB6_OoK/pdf`
+17. **[ ] Prueba también la ruta directa del PDF**: el mismo enlace firmado, poniéndole `/pdf`
+    justo antes del `?`.
     - Qué deberías ver: **no** un error de servidor. En tu Windows, un mensaje de texto claro
       explicando que WeasyPrint no está disponible ahí y las alternativas. Eso es correcto y
       esperado — confirmado que responde 501, no 500.

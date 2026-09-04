@@ -20,16 +20,21 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, an operator admin panel, 292 tests. Demo panel:
-`demo@cafe.cl` / `demo1234`. Nothing has been deployed or published — the user has not bought the
-domain yet, and printing a plaque with a temporary URL is the one irreversible mistake to avoid.
+report with automatic delivery, client onboarding, migrations, an operator admin panel, 337 tests.
+Demo panel: `demo@cafe.cl` — the user changed the password while testing, so re-issue it with
+`python -m scripts.new_client --reset-password 4VB6_OoK` rather than assuming the documented one.
+Nothing has been deployed or published — the user has not bought the domain yet, and printing a
+plaque with a temporary URL is the one irreversible mistake to avoid.
 
 ## Constraints that are not negotiable
 
 **1. Never reintroduce "review gating".** The original spec routed 1-3★ away from Google and only
 sent 4-5★ there. That violates Google's review policies and can get a client's Business Profile
 suspended. The landing page gives every visitor the same one-click path to Google; the private
-channel is an always-available *addition*, never a replacement or a gate. There is deliberately
+channel is an always-available *addition*, never a replacement or a gate. The private channel's label is deliberately neutral
+("¿Prefieres contárnoslo en privado?"): the old "¿Tuviste un problema?" gated nothing, but it
+nudged the unhappy toward the private channel, and Google's selective-solicitation detection
+reads the page, not the intent. There is deliberately
 no star selector before the Google button — it added a click (losing reviews, the exact thing
 the product sells) and created ToS ambiguity for nothing, since a self-reported star is
 unverifiable anyway. Real ratings come from the Google Business Profile API (Module 2).
@@ -91,6 +96,10 @@ python -m scripts.qr_sheet --token TOKEN
 # Enable the operator admin panel at /admin (prints the ADMIN_PASSWORD_HASH line)
 python -m scripts.admin_password
 
+# Borra los contactos de las quejas de más de 6 meses. SIMULA por defecto:
+# --aplicar es lo que borra. Corre solo el día 1 de cada mes en GitHub Actions.
+python -m scripts.anonimizar_contactos --aplicar
+
 # Before deploying: fails loudly on anything that would break in production
 python -m scripts.check_deploy --clientes
 
@@ -123,7 +132,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 292 tests
+pytest -q                       # 337 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
@@ -159,10 +168,11 @@ changes, which `migrations/env.py` enables via `render_as_batch`. The DB URL is 
 app. `tests/test_migraciones.py` fails if models and migrations drift.
 
 Routes: `/r/{token}` (landing), `/r/{token}/go` (logs + 302 to Google), `/r/{token}/feedback`
-(POST), `/r/{token}/qr.png`, `/panel/login` · `/panel/logout`, `/dashboard/` (requires session),
-`/admin/*` (operator panel — see below),
-`/informe/{business.dashboard_token}` (HTML report, `?mes=AAAA-MM`, defaults to the last
-complete month) and `/informe/{token}/pdf`.
+(POST), `/r/{token}/qr.png`, `/panel/login` · `/panel/logout` (**POST**; GET only shows the
+button) · `/panel/password` · `/panel/recuperar` · `/panel/nueva-clave`, `/dashboard/` (requires
+session), `/admin/*` (operator panel — see below),
+`/informe/{business.dashboard_token}` (HTML report, `?mes=AAAA-MM&firma=…`) and
+`/informe/{token}/pdf`.
 
 Report routes deliberately sit outside `/dashboard`: that path is a WSGI mount and swallows
 every route beneath it.
@@ -191,7 +201,18 @@ re-queries on a `dcc.Interval`.
 
 **Auth** ([app/middleware.py](app/middleware.py) + [app/services/auth.py](app/services/auth.py)):
 the panel requires a login (email + password, `scrypt` from the stdlib — no new dependency, and
-never a fast hash like SHA-256). Because the Dash app is WSGI it cannot read Starlette's
+never a fast hash like SHA-256). The session lasts 7 days, not Starlette's default 14: this panel
+gets left open on the counter computer. Logging out is a POST — as a GET, any third-party page
+could sign the owner out with a hidden `<img>`; the Dash header does it with an `html.Form`, and
+its test inspects the **Dash layout object**, because the panel is assembled in the browser from
+JSON and an assertion on the served HTML would never see that button. The owner recovers a
+forgotten password themselves at `/panel/recuperar`: the response is identical whether or not the
+account exists (a "no such email" would turn the form into a tour of the client list, undoing what
+the login's single error message buys), the send goes through a `BackgroundTask` so timing does
+not leak it either, and it has **its own rate limiter** — each hit sends an email, and reusing the
+login limiter would lock an owner out of the panel precisely when they already can't get in.
+With no SMTP configured it says so (503) rather than showing "check your inbox" for a message
+that will never arrive. Because the Dash app is WSGI it cannot read Starlette's
 session, so `DashboardAuthMiddleware` resolves the identity and injects it as an internal
 `x-business-id` header. **It strips any client-supplied header of that name first** — without
 that, anyone could send it by hand and read another tenant's panel; `tests/test_auth.py` covers
@@ -201,7 +222,8 @@ it ends up outermost and `scope["session"]` exists.
 
 The report route deliberately stays a capability URL with no login: it is emailed to the owner
 each month, like an invoice link, and requiring a login on every monthly email would add
-friction to the exact feature that drives retention. `dashboard_token` survives only for that.
+friction to the exact feature that drives retention. `dashboard_token` survives only for that —
+but the link is now signed and expiring; see **Signed links** below.
 
 **Operator admin panel** ([app/routers/admin.py](app/routers/admin.py)): does from a browser
 everything `scripts/new_client.py` does — onboard, edit, add placements, reset a password, rotate a
@@ -249,6 +271,35 @@ WeasyPrint is imported *lazily* inside `render_pdf`: its native GTK libraries do
 Windows, and a top-level import would take the whole app down on a dev machine. Missing engine
 raises `PDFEngineUnavailable`, which the router turns into a 501 with instructions rather than
 a 500.
+
+**Signed links** ([app/services/enlaces.py](app/services/enlaces.py)): the two links that get
+emailed and open without a login carry an `itsdangerous` signature instead of living forever.
+The report link signs `token:AAAA-MM` and lasts 90 days, so a forwarded email exposes *one
+month* rather than a venue's whole history of customer phone numbers and complaints — the
+zero-friction decision was about not asking the owner for a password, never about permanence.
+The password-recovery link lasts an hour and **includes the current password hash in the
+payload**, which makes it single-use with no table and no migration: changing the password
+invalidates it. The salt separates the two domains, so a leaked report link is not a key to the
+panel. Everything that emits a report URL must go through `url_informe`/`ruta_informe` — a
+hand-written `/informe/{token}` is a dead link. `/informe` still opens unsigned for a logged-in
+owner or operator: it would be absurd for someone's own report to expire while they are inside
+their panel, and an unauthorized request answers **403 whether or not the token exists**, so the
+page can't be used to discover which tokens belong to clients.
+
+The signing key is `SESSION_SECRET`, which means **the monthly GitHub workflow and the web server
+must carry the same value** — with different keys, every report link mailed on the 1st is
+rejected by the server that sent it. `tests/test_deploy.py::TestLaFirmaDeLosEnlacesLlegaAProduccion`
+guards the workflow; only the operator can guarantee the values match.
+
+**Data retention** ([scripts/anonimizar_contactos.py](scripts/anonimizar_contactos.py)):
+`Feedback.contact` holds a phone or email belonging to the venue's customer — a third party who
+never became our client and has no way to ask for deletion. It is cleared 6 months **after the
+complaint arrives**, not after it is marked resolved: a status-based rule switches itself off
+when nobody clicks the button, and the abandoned complaints are exactly the ones that accumulate
+a phone number the longest. Only the contact goes; the message stays, because without a contact
+it identifies nobody and it is the venue's operational record. The script **simulates unless
+given `--aplicar`**. The landing states the period, and names the business as the data
+controller — the platform is the processor.
 
 **Config** ([app/config.py](app/config.py)): `pydantic-settings` reading `.env` (see
 `.env.example`; a test asserts every settings field is documented there, since an undocumented

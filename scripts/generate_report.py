@@ -15,6 +15,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.models import Business
+from app.services import enlaces
 from app.services import report as report_service
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "informes"
@@ -62,6 +63,10 @@ def main() -> None:
 
         print(f"Informe de {business.name} · {year}-{month:02d}")
         print(f"Guardado en: {out}")
+        # El enlace en vivo de ESE mes, firmado. Se imprime aquí porque es lo que
+        # se le manda al dueño, y armarlo a mano ya no es posible: sin firma, la
+        # ruta responde que el enlace no sirve.
+        print(f"Enlace para el dueño (vale 90 días): {enlaces.url_informe(business.dashboard_token, year, month)}")
 
 
 if __name__ == "__main__":

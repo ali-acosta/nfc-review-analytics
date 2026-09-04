@@ -179,7 +179,9 @@ def revisar_alertas(r: Reporte) -> None:
             "SMTP sin configurar",
             "Es el canal por el que llegan las alertas de queja, que es la razón\n"
             "principal por la que un cliente sigue pagando. Sin esto, un cliente\n"
-            "enojado escribe y el dueño no se entera nunca.",
+            "enojado escribe y el dueño no se entera nunca.\n"
+            "También es por donde el dueño recupera su contraseña: sin SMTP vuelve\n"
+            "a depender de que se la regeneres y se la dictes por teléfono.",
         )
 
     if settings.telegram_bot_token:

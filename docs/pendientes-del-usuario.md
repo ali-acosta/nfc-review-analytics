@@ -8,15 +8,18 @@ lo trabajo yo en paralelo. Actualizado el 2026-09-03, tras tu ronda de pruebas.
 > seguridad y ya está corregido. Ningún test lo podía detectar, porque esa política la aplica el
 > navegador: es el mejor argumento de por qué valía la pena que probaras a mano.
 
-**Lo que queda es todo tuyo**: siete decisiones, cinco cuentas por crear, cuatro compras y cinco
-tareas de orden. Nada de eso lo puedo hacer yo.
+> **Bloque B completado.** Respondiste "todas las recomendadas" y las siete están implementadas,
+> con tests. Lo que cambió para ti está resumido abajo, en el bloque B.
+
+**Lo que queda es todo tuyo**: cinco cuentas por crear, cuatro compras y cinco tareas de orden.
+Nada de eso lo puedo hacer yo.
 
 Aquí está **todo** lo que no puedo hacer yo: probar con tus ojos y tu celular, decidir lo que es
 tuyo decidir, crear cuentas a tu nombre, comprar cosas y ordenar lo que quedó suelto.
 
-**Orden sugerido**: bloque A (probar) hoy, bloque E (seguridad, 5 minutos) hoy también, bloque C
-(cuentas) esta semana porque una de ellas tarda semanas en aprobarse, bloque B (decisiones)
-cuando tengas tiempo de leer, bloque D (compras) cuando decidas avanzar a producción.
+**Orden sugerido**: bloque E (seguridad, 5 minutos) hoy, bloque C (cuentas) esta semana porque
+una de ellas tarda semanas en aprobarse, y bloque D (compras) cuando decidas avanzar a
+producción.
 
 ---
 
@@ -118,31 +121,27 @@ los QR apuntan a tu red local (es solo para esta prueba).
 
 ---
 
-## B · Decisiones que solo tú puedes tomar · ⏳ **ES LO QUE MÁS BLOQUEA**
+## B · Decisiones que solo tú puedes tomar · ✅ TERMINADO
 
-Son siete y ninguna toma más de un minuto de leer. Con ellas respondidas se cierra todo lo que
-quedaba abierto de la revisión técnica en la parte de código. Puedes contestar
-**"todas las recomendadas"** y las implemento de una vez.
+Respondiste "todas las recomendadas" el 2026-09-03. Las siete están implementadas y con tests.
+Esto es lo que cambió, en lo que tú vas a notar:
 
-Para cada una dejo mi recomendación, así puedes responder con un "sí" o "no" sin tener que
-investigar. Ninguna bloquea mi trabajo de esta semana.
-
-| # | Decisión | Mi recomendación |
+| # | Qué pediste | Qué cambió para ti |
 |---|---|---|
-| B1 | **¿Enlace del informe con vencimiento?** Hoy el enlace del informe nunca caduca, no pide clave y da acceso a todos los meses, con teléfonos y quejas de clientes finales adentro. Se puede firmar por mes con vencimiento a 90 días, sin agregar ni un click de fricción para el dueño. | **Sí.** Mantiene la fricción cero que pediste y limita el daño de un correo reenviado. |
-| B2 | **¿Ocultar el contacto del cliente en el informe** y mostrarlo solo en el panel? | **No por ahora.** El contacto en el informe sirve para llamar al cliente enojado, que es el valor del producto. Revisar si algún cliente lo objeta. |
-| B3 | **¿Cambiar el texto "¿Tuviste un problema?"** en la landing por algo neutro como "¿Prefieres contárnoslo en privado?" | **Sí.** Google endureció la detección de solicitud selectiva en abril de 2026. No cambia el flujo y quita ambigüedad. |
-| B4 | **¿Borrar automáticamente los contactos** de las quejas atendidas después de 6 meses? La Ley 21.719 pide finalidad y plazo. | **Sí**, con un comando que corra mensual. Te dejo el borrador cuando digas. |
-| B5 | **¿Quién es el responsable del tratamiento** de datos, el comercio o tu plataforma? Es lo primero que pregunta un abogado. | **El comercio**, con tu plataforma como encargada. Es lo habitual y lo más defendible. Conviene confirmarlo con alguien que sepa antes del primer cliente que pague. |
-| B6 | **¿Sesión del panel que expire a los 7 días?** Hoy dura 14. | **Sí.** Un panel abierto en el mostrador del local dos semanas es mucho. |
-| B7 | **¿Logout por POST en vez de GET?** Hoy cualquier enlace puede cerrarle la sesión al dueño. | **Sí.** Es molesto, no peligroso, y son diez minutos. |
+| B1 | Enlace del informe con vencimiento | El enlace del informe ahora **caduca a los 90 días y abre un solo mes**. Sigue sin pedir contraseña: el dueño lo abre desde el correo igual que antes, cero clicks extra. Si intenta abrir uno viejo, ve una página que le explica que venció y lo manda a su panel. Ojo con una cosa: **el enlace “a secas” (`/informe/TOKEN`) ya no abre nada** salvo que tengas sesión iniciada. Los que salen del panel de administración y del envío mensual ya vienen firmados. |
+| B2 | No ocultar el contacto | Sin cambios: el teléfono del cliente enojado sigue en el informe, que es lo que te permite llamarlo. |
+| B3 | Texto neutro del canal privado | La landing ya no dice "¿Tuviste un problema?" sino **"¿Prefieres contárnoslo en privado?"**, y el campo dice "Cuéntanos cómo te fue". Hay un test que falla si alguna vez vuelve a presuponer que al cliente le fue mal. |
+| B4 | Borrar contactos antiguos | Los contactos de las quejas se borran **a los 6 meses**, automáticamente, el día 1 de cada mes. Se borra solo el contacto: el comentario queda, y las métricas no se mueven. La landing ahora se lo avisa al cliente final. **Cambié un detalle de la propuesta**: el plazo se cuenta desde que llegó la queja y no desde que la marcaste atendida, porque si no, una queja que nadie marca guarda el teléfono para siempre. |
+| B5 | Responsable del tratamiento | Queda escrito: **el comercio es el responsable, tu plataforma es la encargada**. La landing lo refleja ("Café Demo usará lo que nos escribas…"). Sigue conviniendo que lo confirme alguien que sepa antes del primer cliente que pague. |
+| B6 | Sesión de 7 días | El panel del dueño **cierra sesión a los 7 días** en vez de 14. |
+| B7 | Logout por POST | Cerrar sesión ahora es un botón de verdad. Antes, cualquier página ajena podía sacar al dueño de su panel con un enlace escondido. |
 
-Estas siete son lo único de la revisión técnica que sigue esperando por ti en la parte de código.
-Todo lo demás que no dependía de una decisión tuya ya está corregido: 27 hallazgos cerrados, la
-suite pasó de 149 a 176 tests.
-
-**Cómo responder**: basta con "B1 sí, B2 no, B3 sí…" o "todas las recomendadas". Yo las
-implemento.
+**Una cosa nueva que necesito de ti por culpa de B1** (está también en el bloque C): cuando
+configures el envío mensual en GitHub, tiene que llevar el secret `SESSION_SECRET`, **el mismo
+valor** que pongas en el servidor. Es la clave con la que se firman los enlaces del informe: si
+fueran distintas, el correo del día 1 saldría con un enlace que tu propio servidor rechaza. Hay
+un test que falla si el workflow se queda sin ese secret, pero que las dos claves sean iguales
+solo lo puedes garantizar tú.
 
 ---
 
@@ -177,6 +176,11 @@ cuando pegas la clave.
 **Por qué**: es el canal de la alerta de queja, que es la razón principal por la que un cliente
 sigue pagando. Un dueño de pyme chileno revisa su correo a diario.
 
+**Y desde hoy también**: por ahí recupera su contraseña. Ya está construido —el dueño entra a
+"¿Olvidaste tu contraseña?" en el login y le llega un enlace de una hora— pero sin SMTP la
+página se lo dice honestamente y vuelves a tener que regenerársela tú y dictársela. Es la
+diferencia entre una función que existe y una que funciona.
+
 ### C4 · Neon (base de datos) — gratis · **no uses Supabase**
 
 - [ ] Crear cuenta en neon.tech y una base
@@ -185,6 +189,17 @@ sigue pagando. Un dueño de pyme chileno revisa su correo a diario.
 **Por qué Neon y no Supabase**: Supabase pausa los proyectos gratuitos a los 7 días sin actividad
 y hay que reanudarlos a mano; si eso pasa, un cliente toca la placa y no carga nada. Neon
 suspende el cómputo pero despierta solo en aproximadamente un segundo.
+
+### C6 · Los secrets de GitHub para el envío mensual
+
+- [ ] En Settings → Secrets del repositorio, cargar: `DATABASE_URL`, `BASE_URL`,
+      `SESSION_SECRET`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`
+- [ ] Verificar que `SESSION_SECRET` sea **exactamente el mismo valor** que el del servidor
+
+**Por qué el mismo valor**: con esa clave se firman los enlaces del informe. Si el servidor firma
+con una y el correo mensual con otra, el día 1 de cada mes cada cliente recibe un enlace que tu
+propio servidor rechaza, y te enteras por el reclamo. Es la misma clase de error que ya pasó con
+el correo: el código perfecto y la variable que nunca llega.
 
 ### C5 · Telegram (opcional)
 
@@ -286,7 +301,7 @@ claro antes de que el proyecto valga dinero. Los commits ya salen con tu correo 
 
 ---
 
-## Resumen: lo tres cosas más importantes
+## Resumen: las tres cosas más importantes
 
 1. **Probar el flujo con tu celular** (bloque A.1). Es lo único que valida que el producto
    funciona de verdad, y nadie lo ha hecho todavía.
@@ -294,3 +309,20 @@ claro antes de que el proyecto valga dinero. Los commits ya salen con tu correo 
 3. **Solicitar el acceso a la API de Google** (C1). Tarda semanas y no cuesta nada empezar.
 
 Todo lo demás puede esperar a que termines de probar.
+
+---
+
+## Qué volver a probar a mano después de estos cambios
+
+Son cinco minutos y cubren lo que la suite no ve. El detalle está en
+[ruta-de-pruebas-manuales.md](ruta-de-pruebas-manuales.md).
+
+- [ ] Abrir la landing y confirmar que el botón privado dice "¿Prefieres contárnoslo en privado?"
+      y que abajo aparece el aviso de que el contacto se borra a los 6 meses.
+- [ ] Abrir `/informe/4VB6_OoK` **sin** sesión: debe salir la página de "este enlace ya no sirve",
+      no un error.
+- [ ] Correr `python -m scripts.new_client --listar`, copiar el enlace del informe que imprime y
+      abrirlo en una ventana privada: ese sí debe abrir, con sus gráficos.
+- [ ] En el panel del dueño, cerrar sesión con el botón nuevo.
+- [ ] En el login, entrar a "¿Olvidaste tu contraseña?": sin SMTP configurado debe decirlo
+      claramente, no fingir que mandó un correo.

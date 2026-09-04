@@ -54,8 +54,11 @@
 
 <section>
   <h2>Informe mensual</h2>
-  <p class="apunte">Enlace directo, sin contraseña. Es el que se le manda por correo cada mes.</p>
-  <p><code>{{ base }}/informe/{{ business.dashboard_token }}</code></p>
+  <p class="apunte">
+    Enlace directo, sin contraseña. Es el que se le manda por correo cada mes. Vale 90 días
+    y abre solo ese mes; el envío mensual genera uno nuevo cada vez.
+  </p>
+  <p><code>{{ enlace_informe }}</code></p>
 </section>
 
 <div class="acciones">

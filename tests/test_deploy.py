@@ -156,3 +156,76 @@ class TestRespaldos:
 
     def test_exporta_todos_los_clientes_y_no_uno(self):
         assert "--todos" in self._workflow()
+
+
+class TestLaFirmaDeLosEnlacesLlegaAProduccion:
+    """El correo mensual y el servidor web tienen que firmar con la MISMA clave.
+
+    Es el mismo error que ya se cometió con SMTP, con otra cara: el código
+    perfecto y la variable que nunca llega. Si el workflow mensual firma con una
+    clave distinta a la del servidor, cada cliente recibe el día 1 un correo con
+    un enlace que su propio informe rechaza, y el fallo aparece en producción,
+    una vez al mes, en la pieza que sostiene la suscripción."""
+
+    def test_el_envio_mensual_recibe_la_clave_de_firma(self):
+        workflow = (RAIZ / ".github" / "workflows" / "informe-mensual.yml").read_text(encoding="utf-8")
+
+        assert "SESSION_SECRET: ${{ secrets.SESSION_SECRET }}" in workflow
+
+    def test_el_servidor_web_recibe_la_clave_de_firma(self):
+        blueprint = (RAIZ / "render.yaml").read_text(encoding="utf-8")
+
+        assert "SESSION_SECRET" in blueprint
+
+
+class TestLaRetencionDeContactosEstaAgendada:
+    """Un borrado de datos personales que hay que acordarse de correr a mano no
+    es una política de retención: es una intención."""
+
+    def _workflow(self) -> str:
+        return (RAIZ / ".github" / "workflows" / "informe-mensual.yml").read_text(encoding="utf-8")
+
+    def test_corre_sola_todos_los_meses(self):
+        assert "scripts.anonimizar_contactos" in self._workflow()
+
+    def test_corre_de_verdad_y_no_en_simulacion(self):
+        """El script simula por defecto a propósito. Agendado sin --aplicar
+        quedaría un job en verde que no borra nada."""
+        workflow = self._workflow()
+        linea = [l for l in workflow.splitlines() if "scripts.anonimizar_contactos" in l][0]
+
+        assert "--aplicar" in linea
+
+    def test_recibe_la_base_de_produccion(self):
+        assert "DATABASE_URL: ${{ secrets.DATABASE_URL }}" in self._workflow()
+
+
+class TestLaSesionDelPanelNoDuraDemasiado:
+    def test_caduca_en_una_semana(self):
+        """El panel se deja abierto en el computador del mostrador del local.
+        Catorce días (el valor por defecto de Starlette) es demasiado."""
+        from app.main import SESION_MAX_AGE
+
+        assert SESION_MAX_AGE == 7 * 24 * 60 * 60
+
+    def test_la_cookie_sale_con_ese_vencimiento(self, negocio):
+        """Sin seguir la redirección: la cookie viaja en el 302 del login."""
+        from fastapi.testclient import TestClient
+
+        from app.database import SessionLocal
+        from app.main import app
+        from app.models import Business
+        from app.services.auth import hash_password
+
+        with SessionLocal() as db:
+            business = db.get(Business, negocio.id)
+            business.login_email = "duena@local.cl"
+            business.password_hash = hash_password("clave-de-prueba-123")
+            db.commit()
+
+        with TestClient(app, follow_redirects=False) as c:
+            respuesta = c.post(
+                "/panel/login", data={"email": "duena@local.cl", "password": "clave-de-prueba-123"}
+            )
+
+        assert "Max-Age=604800" in respuesta.headers["set-cookie"]

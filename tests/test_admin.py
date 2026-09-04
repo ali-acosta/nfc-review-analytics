@@ -289,6 +289,29 @@ class TestFichaDelCliente:
     def test_cliente_inexistente_da_404(self, operador):
         assert operador.get("/admin/no-existe-este-token").status_code == 404
 
+    def test_el_enlace_del_informe_que_muestra_la_ficha_abre_de_verdad(self, operador, negocio):
+        """El operador copia ese enlace y se lo manda al dueño.
+
+        Desde que el informe exige firma, un enlace armado a mano en la plantilla
+        sería un enlace muerto, y el operador se enteraría por el reclamo del
+        cliente. Se prueba desde un cliente SIN sesión, que es quien lo va a
+        abrir: con la sesión del operador abriría igual y el test no vería nada.
+        """
+        import html as htmllib
+        import re
+
+        from fastapi.testclient import TestClient
+
+        from app.main import app
+
+        ficha = operador.get(f"/admin/{negocio.token}").text
+        mostrado = re.findall(r"<code>(http[^<]*informe[^<]*)</code>", ficha)
+
+        assert mostrado, "la ficha dejó de mostrar el enlace del informe"
+        ruta = htmllib.unescape(mostrado[0]).replace("http://testserver", "")
+        with TestClient(app) as cualquiera:
+            assert cualquiera.get(ruta).status_code == 200
+
 
 class TestElListado:
     def test_muestra_los_clientes_con_sus_cifras(self, operador, negocio):

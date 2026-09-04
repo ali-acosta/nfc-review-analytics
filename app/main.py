@@ -19,6 +19,9 @@ from app.routers import admin, auth, redirect, reports
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
+# Duración de la sesión del panel del comercio.
+SESION_MAX_AGE = 7 * 24 * 60 * 60
+
 
 def _configurar_sentry(log: logging.Logger) -> None:
     """Enciende el monitoreo de errores si hay DSN. Nunca tumba el arranque.
@@ -88,6 +91,11 @@ app.add_middleware(
     session_cookie="nfc_panel",
     https_only=settings.base_url.startswith("https://"),
     same_site="lax",
+    # Siete días, no los catorce que trae por defecto: este panel se deja
+    # abierto en el computador del mostrador del local, donde entra cualquiera
+    # que pase por ahí. Menos de una semana ya empieza a molestar al dueño que
+    # entra los lunes.
+    max_age=SESION_MAX_AGE,
 )
 
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
