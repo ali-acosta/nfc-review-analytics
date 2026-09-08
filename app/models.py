@@ -136,6 +136,123 @@ class Tap(Base):
     placement: Mapped["Placement"] = relationship(back_populates="taps")
 
 
+class LoyaltyProgram(Base):
+    """El programa de sellos de un comercio. Uno por negocio.
+
+    Existe como tabla aparte y no como columnas de `Business` porque un negocio
+    puede no tener programa: la fidelización se vende como agregado, y un
+    comercio sin programa no debe cargar con sus columnas ni aparecer en sus
+    consultas.
+
+    `secret` es lo que hace que el token público no alcance para regalarse
+    sellos: el código de la caja se deriva de él y nunca sale del servidor.
+    """
+
+    __tablename__ = "loyalty_programs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    business_id: Mapped[int] = mapped_column(ForeignKey("businesses.id"), unique=True, index=True)
+    # Identificador público del programa: viaja en el QR que muestra la caja.
+    # Es público a propósito, igual que el token de una placa; conocerlo no
+    # permite sumar un sello porque hace falta además el código rotativo.
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, default=new_token)
+    # Semilla del código rotativo. Nunca se muestra ni viaja en una URL.
+    secret: Mapped[str] = mapped_column(String(128), default=lambda: secrets.token_urlsafe(32))
+
+    stamps_required: Mapped[int] = mapped_column(Integer, default=5)
+    # Texto libre porque el premio es del comercio, no de la plataforma:
+    # "el 5° café gratis", "10% de descuento", "un corte gratis".
+    reward: Mapped[str] = mapped_column(String(200), default="")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    # Placa a la que se atribuyen las reseñas que salgan del flujo de sellos.
+    # Se crea una propia ("Caja") al activar el programa en vez de reutilizar
+    # una existente: así la comparación por soporte sigue diciendo la verdad y,
+    # de paso, el dueño puede ver si el camino de fidelización convierte mejor
+    # que una mesa.
+    placement_id: Mapped[int | None] = mapped_column(
+        ForeignKey("placements.id"), nullable=True, index=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
+
+    business: Mapped["Business"] = relationship()
+    placement: Mapped["Placement | None"] = relationship()
+
+
+class LoyaltyCard(Base):
+    """La tarjeta de un cliente final *en un comercio*.
+
+    Alcanzada por negocio a propósito: el mismo teléfono en dos locales son dos
+    tarjetas. La base de clientes es del comercio, y cruzarla entre comercios
+    sería repartir un dato que no es de la plataforma.
+
+    No lleva ningún dato personal. La tarjeta *es* su token: una URL capacidad
+    que el cliente guarda en su teléfono, como la de papel que reemplaza. Si la
+    pierde, pierde sus sellos —exactamente lo que pasa hoy con la de cartón—, y
+    esa es la razón por la que la Fase 1 no necesita pedir teléfono ni correo, y
+    por tanto no necesita consentimiento ni plazo de borrado.
+    """
+
+    __tablename__ = "loyalty_cards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    business_id: Mapped[int] = mapped_column(ForeignKey("businesses.id"), index=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True, default=new_token)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
+
+    business: Mapped["Business"] = relationship()
+    stamps: Mapped[list["Stamp"]] = relationship(back_populates="card")
+
+
+class Stamp(Base):
+    """Un sello. **Solo se agrega: nunca se edita ni se borra.**
+
+    Es lo que respalda un premio, o sea plata del comercio, así que tiene que
+    poder auditarse. Por eso el consumo de sellos no se marca aquí (lo lleva
+    `Reward.stamps_consumed`): tocar una fila de esta tabla sería reescribir el
+    registro de algo que ya ocurrió.
+    """
+
+    __tablename__ = "loyalty_stamps"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    card_id: Mapped[int] = mapped_column(ForeignKey("loyalty_cards.id"), index=True)
+    business_id: Mapped[int] = mapped_column(ForeignKey("businesses.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow, index=True)
+
+    card: Mapped["LoyaltyCard"] = relationship(back_populates="stamps")
+
+
+class Reward(Base):
+    """Un premio ganado, y su canje.
+
+    `redeemed_at` nulo = ganado y sin cobrar. Cobrarlo dos veces es plata del
+    comercio, así que el canje se hace en una actualización condicionada a que
+    siga nulo: dos toques al mismo botón no pueden cobrarlo dos veces.
+
+    `stamps_consumed` guarda cuántos sellos costó y no se recalcula desde el
+    programa: si el dueño cambia mañana el premio de 5 a 8 sellos, los premios
+    ya emitidos tienen que seguir contando lo que costaron el día que se
+    emitieron, o el saldo de todas las tarjetas se movería solo.
+    """
+
+    __tablename__ = "loyalty_rewards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    card_id: Mapped[int] = mapped_column(ForeignKey("loyalty_cards.id"), index=True)
+    business_id: Mapped[int] = mapped_column(ForeignKey("businesses.id"), index=True)
+    stamps_consumed: Mapped[int] = mapped_column(Integer, default=0)
+    # Copia del texto del premio al momento de ganarlo, por la misma razón que
+    # stamps_consumed: el dueño puede cambiar el premio y quien ya lo ganó tiene
+    # que poder cobrar el que le prometieron.
+    reward_text: Mapped[str] = mapped_column(String(200), default="")
+    issued_at: Mapped[datetime] = mapped_column(UtcDateTime, default=utcnow)
+    redeemed_at: Mapped[datetime | None] = mapped_column(UtcDateTime, nullable=True)
+
+    card: Mapped["LoyaltyCard"] = relationship()
+
+
 class Feedback(Base):
     """A private complaint that the customer chose to send to the business
     instead of (or before) posting publicly."""

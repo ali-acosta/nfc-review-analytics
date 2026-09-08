@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import get_db
-from app.models import Feedback, Placement, Tap
+from app.models import Feedback, LoyaltyProgram, Placement, Tap
 from app.services.notify import notify
 from app.services.qrcode_gen import qr_png_bytes
 from app.services.ratelimit import client_ip, feedback_limiter, public_limiter
@@ -111,12 +111,25 @@ def landing(token: str, request: Request, db: Session = Depends(get_db)):
     if _debe_contarse(request):
         _log(db, placement, session_id, user_agent, "landed")
 
+    # Si el local tiene programa de sellos, la landing ofrece ver la tarjeta.
+    # Va al final de la página y nunca antes del botón de Google: cada elemento
+    # que se le pone por delante le cuesta reseñas al cliente, que es lo que
+    # paga. Desde aquí solo se *mira* la tarjeta; sumar un sello exige el código
+    # de la caja.
+    programa = db.scalar(
+        select(LoyaltyProgram).where(
+            LoyaltyProgram.business_id == placement.business_id,
+            LoyaltyProgram.active.is_(True),
+        )
+    )
+
     response = templates.TemplateResponse(
         request,
         "landing.html",
         {
             "business": placement.business,
             "placement": placement,
+            "programa": programa,
             # Se pasa como bandera y no el contenido: el logo lo sirve su
             # propia ruta, cacheable, en vez de engordar cada carga de la
             # página con la imagen incrustada.

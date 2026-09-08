@@ -20,7 +20,7 @@ suite cannot see them (they only appear on Postgres, behind Render's proxy, or i
 Tick items off in that document as they are resolved.
 
 The product works end to end today: capture flow, per-tenant dashboard behind a login, monthly
-report with automatic delivery, client onboarding, migrations, an operator admin panel, 352 tests.
+report with automatic delivery, client onboarding, migrations, an operator admin panel, 396 tests.
 Demo panel: `demo@cafe.cl` — the user changed the password while testing, so re-issue it with
 `python -m scripts.new_client --reset-password 4VB6_OoK` rather than assuming the documented one.
 Nothing has been deployed or published — the user has not bought the domain yet, and printing a
@@ -132,7 +132,7 @@ silently creates a client that looks like it failed, and invites the operator to
 
 ```powershell
 pip install -r requirements-dev.txt
-pytest -q                       # 352 tests
+pytest -q                       # 396 tests
 pytest tests/test_metrics.py -q # solo la métrica
 ```
 
@@ -169,7 +169,10 @@ app. `tests/test_migraciones.py` fails if models and migrations drift.
 
 Routes: `/r/{token}` (landing), `/r/{token}/go` (logs + 302 to Google), `/r/{token}/feedback`
 (POST), `/r/{token}/qr.png`, `/panel/login` · `/panel/logout` (**POST**; GET only shows the
-button) · `/panel/password` · `/panel/recuperar` · `/panel/nueva-clave`, `/dashboard/` (requires
+button) · `/panel/password` · `/panel/recuperar` · `/panel/nueva-clave` ·
+`/panel/fidelizacion` · `/panel/caja` (+ `/panel/caja/codigo`, JSON),
+`/sello/{programa}/{codigo}` · `/tarjeta/{token}` · `/tarjeta/{token}/canjear` (POST) ·
+`/mi-tarjeta/{programa}`, `/dashboard/` (requires
 session), `/admin/*` (operator panel — see below),
 `/informe/{business.dashboard_token}` (HTML report, `?mes=AAAA-MM&firma=…`) and
 `/informe/{token}/pdf`.
@@ -183,7 +186,9 @@ One FastAPI app ([app/main.py](app/main.py)) with a Dash sub-app mounted into it
 
 **Data model** ([app/models.py](app/models.py)) — the shape carries most of the design:
 `Business` (tenant) → `Placement` (one physical plaque/card/sticker, each with its own token) →
-`Tap` (funnel events) and `Feedback` (private complaints). `Tap.session_id` is what makes a real
+`Tap` (funnel events) and `Feedback` (private complaints). The loyalty program adds
+`LoyaltyProgram` → `LoyaltyCard` → `Stamp` / `Reward`, a separate subtree that a business
+without a program never touches. `Tap.session_id` is what makes a real
 funnel possible: without it there's no way to know which `landed` event belongs to which
 `went_to_google` event. Outcomes are `landed` / `went_to_google` / `left_private_feedback`.
 
@@ -294,6 +299,52 @@ The signing key is `SESSION_SECRET`, which means **the monthly GitHub workflow a
 must carry the same value** — with different keys, every report link mailed on the 1st is
 rejected by the server that sent it. `tests/test_deploy.py::TestLaFirmaDeLosEnlacesLlegaAProduccion`
 guards the workflow; only the operator can guarantee the values match.
+
+**Programa de sellos** ([app/services/fidelizacion.py](app/services/fidelizacion.py) +
+[app/routers/fidelizacion.py](app/routers/fidelizacion.py) +
+[app/routers/panel_sellos.py](app/routers/panel_sellos.py)): the paper stamp card, digital.
+Design and cost analysis in [docs/fidelizacion-diseno.md](docs/fidelizacion-diseno.md).
+
+**This is the one part of the product where an extra row is money, not a metric.** A stamp buys a
+coffee, so its threat model is not the funnel's: everywhere else a public token is harmless, here
+it is not. Hence the rules, which live in `fidelizacion.py` and nowhere else:
+
+* **The table plaque never grants a stamp.** Its token is glued to a table where anyone can read
+  it; if tapping it stamped, the reward would be won by tapping five times, or from home with a
+  photo of the QR. There is deliberately **no route that stamps from a placement token** —
+  `tests/test_fidelizacion.py::TestElSelloLoDaLaCaja` fails if one appears. The stamp comes from
+  `/sello/{programa}/{codigo}`, and the code is an HMAC of a **per-program secret** and a
+  one-minute window, shown on the register's screen (`/panel/caja`). That is the same condition
+  the paper stamp imposed by itself: you have to be standing at the counter.
+* The previous window is accepted too (so a code lives 60-120s), because between focusing the QR
+  and the request landing there are seconds, and failing on the minute boundary would break the
+  product in front of the cashier.
+* **One stamp per card per day**, bucketed in the business's local timezone like everything else.
+* **Redeeming also requires the register's code**, for the same reason: otherwise anyone redeems
+  their coffee from the sofa and arrives with an empty card. The redemption `UPDATE` carries
+  `redeemed_at IS NULL` in its `WHERE` — a double-click cannot pay the same reward twice.
+* **Stamps are append-only.** Consumption is recorded on the `Reward` (`stamps_consumed`), never
+  by editing a stamp, so the ledger stays auditable. `Reward` also copies the reward text and its
+  cost in stamps: if the owner changes the terms tomorrow, whoever already won still gets what
+  they were promised.
+
+`LoyaltyCard` carries **no personal data at all** — the card *is* its token, a capability URL the
+customer keeps on their phone, exactly like the cardboard one it replaces. That is why phase 1
+needs no consent, no retention rule and no deletion job; the legal weight only appears when a
+contact is collected, which is phase 4's problem (see the design doc).
+
+Activating a program creates its **own `Placement`** ("Caja (fidelización)") so reviews coming out
+of the stamp flow are attributed there instead of polluting a table's numbers — and so the owner
+can see whether the loyalty path converts better than a table.
+
+The review step inside the card is **the same one as everywhere else**: one click to Google for
+everyone, private channel always available. The original pitch for this feature proposed gating by
+rating after the stamp; that was not built, and `TestLaTarjetaNoRompeLaPoliticaDeGoogle` fails if
+it returns.
+
+Stamps and rewards go into the **weekly backup** (`metrics.load_sellos` / `load_premios`). Losing
+them is worse than losing tap history: it is not a missing number, it is a customer who already
+earned their coffee standing at the counter while the system says they have nothing.
 
 **Data retention** ([scripts/anonimizar_contactos.py](scripts/anonimizar_contactos.py)):
 `Feedback.contact` holds a phone or email belonging to the venue's customer — a third party who

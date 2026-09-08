@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>{{ business.name }} — Vuelve a escanear</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>{{ business.name }}</h1>
+    <p class="subtitle">
+      {{ mensaje or "El código de la caja cambia cada minuto por seguridad, y este ya venció.
+      Vuelve a escanear el de la pantalla y listo." }}
+    </p>
+  </main>
+</body>
+</html>

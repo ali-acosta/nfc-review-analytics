@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Programa de sellos — {{ business.name }}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <h1>Programa de sellos</h1>
+
+    {% if ok %}
+    <p class="form-ok" role="status">Guardado.</p>
+    {% endif %}
+    {% if error %}
+    <p class="form-error" role="alert">{{ error }}</p>
+    {% endif %}
+
+    {% if programa and resumen %}
+    <div class="resumen">
+      <div><strong>{{ resumen.tarjetas }}</strong><span>tarjetas</span></div>
+      <div><strong>{{ resumen.sellos }}</strong><span>sellos dados</span></div>
+      <div><strong>{{ resumen.premios_ganados }}</strong><span>premios ganados</span></div>
+      <div><strong>{{ resumen.premios_canjeados }}</strong><span>premios canjeados</span></div>
+    </div>
+    {% else %}
+    <p class="subtitle">
+      Reemplaza la tarjeta de sellos de papel. El sello lo das tú desde la caja, con un código
+      que cambia cada minuto: nadie puede regalarse sellos desde su casa.
+    </p>
+    {% endif %}
+
+    <form method="post" action="/panel/fidelizacion" class="login-form">
+      <label>
+        ¿Cuántos sellos para ganar el premio?
+        <input type="number" name="sellos" min="1" max="{{ max_sellos }}"
+               value="{{ programa.stamps_required if programa else 5 }}" required />
+      </label>
+      <label>
+        ¿Cuál es el premio? Esto es lo que va a leer tu cliente.
+        <input type="text" name="premio" maxlength="200" required
+               placeholder="El 5° café gratis"
+               value="{{ programa.reward if programa else '' }}" />
+      </label>
+      <label>
+        <input type="checkbox" name="activo" value="si"
+               {% if not programa or programa.active %}checked{% endif %} />
+        Programa activo
+      </label>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </form>
+
+    {% if programa and programa.active %}
+    <a class="btn btn-secondary" href="/panel/caja">Abrir la pantalla de la caja</a>
+    <p class="legal">
+      Deja esa pantalla abierta en el computador del mostrador. Es la única forma de dar un
+      sello, así que funciona como el timbre: quien la ve, puede sellar.
+    </p>
+    {% endif %}
+
+    <a class="link-secondary" href="/dashboard/">Volver al panel</a>
+  </main>
+</body>
+</html>

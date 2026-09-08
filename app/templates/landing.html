@@ -64,6 +64,13 @@
         servicio. Si dejas un contacto, se borra a los 6 meses.
       </p>
     </section>
+
+    {% if programa %}
+    <!-- Al final de la página a propósito: nada puede ponerse por delante del
+         botón de Google, que es lo que el cliente del comercio paga. Desde aquí
+         solo se mira la tarjeta; el sello sale del código de la caja. -->
+    <a class="link-secondary" href="/mi-tarjeta/{{ programa.token }}">Ver mi tarjeta de sellos</a>
+    {% endif %}
   </main>
 
   <script src="/static/landing.js"></script>

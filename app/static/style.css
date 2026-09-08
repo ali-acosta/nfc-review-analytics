@@ -171,3 +171,137 @@ h1 {
   font-size: 0.75rem;
   color: var(--muted);
 }
+
+/* --------------------------------------------------------------------------
+   Tarjeta de sellos
+   Todo va en la hoja externa y nada en línea: estas páginas son públicas y
+   quedan bajo la CSP estricta, que descarta cualquier style= del documento.
+   -------------------------------------------------------------------------- */
+
+.sellos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: 20px 0 8px;
+}
+
+.sello {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+.sello-lleno {
+  background: var(--primary);
+  border: 2px solid var(--primary);
+  color: var(--primary-text);
+}
+
+.progreso {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+
+.premio {
+  background: #fff6e0;
+  border: 1px solid #f0d9a0;
+  border-radius: 12px;
+  padding: 16px;
+  margin: 0 0 16px;
+}
+
+.premio h2 {
+  font-size: 1.05rem;
+  margin: 0 0 6px;
+}
+
+.premio p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.bloque-resena {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.guardar {
+  margin-top: 20px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------------------------
+   Pantalla de la caja
+   Se deja abierta todo el día en el computador del mostrador, así que el
+   código tiene que leerse de lejos y el QR escanearse sin acercar el teléfono.
+   -------------------------------------------------------------------------- */
+
+.caja {
+  max-width: 560px;
+}
+
+.caja-qr {
+  width: 260px;
+  height: 260px;
+  image-rendering: pixelated;
+  margin: 8px auto;
+  display: block;
+}
+
+.caja-codigo {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 8px 0 4px;
+}
+
+.caja-cuenta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0 0 16px;
+}
+
+.caja-ayuda {
+  text-align: left;
+  font-size: 0.85rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 20px;
+}
+
+.resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.resumen div {
+  flex: 1 1 40%;
+  background: var(--secondary);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.resumen strong {
+  display: block;
+  font-size: 1.4rem;
+}
+
+.resumen span {
+  font-size: 0.8rem;
+  color: var(--muted);
+}

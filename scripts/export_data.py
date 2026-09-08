@@ -38,10 +38,22 @@ def exportar(business: Business, destino: Path) -> list[Path]:
     destino.mkdir(parents=True, exist_ok=True)
     escritos = []
 
-    for que, datos in (
+    tablas = [
         ("visitas", metrics.load_taps(business.id)),
         ("quejas", metrics.load_feedback(business.id)),
-    ):
+    ]
+
+    # Los sellos solo si el negocio tiene programa, para no llenar el respaldo de
+    # archivos vacíos. Van al respaldo por una razón distinta de las visitas: no
+    # es historial, es una deuda. Si se pierden, un cliente que ya juntó los suyos
+    # llega al mostrador y el sistema le dice que no tiene nada, delante del
+    # cajero y sin forma de demostrarlo.
+    sellos = metrics.load_sellos(business.id)
+    premios = metrics.load_premios(business.id)
+    if not sellos.empty or not premios.empty:
+        tablas += [("sellos", sellos), ("premios", premios)]
+
+    for que, datos in tablas:
         ruta = destino / _nombre_archivo(business, que)
         # utf-8-sig para que Excel en Windows no destroce los acentos.
         datos.to_csv(ruta, index=False, encoding="utf-8-sig")

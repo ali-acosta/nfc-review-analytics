@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>{{ business.name }} — Mi tarjeta de sellos</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    {% if tiene_logo and placement %}
+    <img class="logo" src="/r/{{ placement.token }}/logo.png" alt="{{ business.name }}" />
+    {% endif %}
+    <h1>{{ business.name }}</h1>
+
+    {% if aviso == 'ok' %}
+    <p class="form-ok" role="status">¡Sello registrado!</p>
+    {% elif aviso == 'repetido' %}
+    <p class="form-ok" role="status">Ya tenías tu sello de hoy. Te esperamos mañana.</p>
+    {% elif aviso == 'canjeado' %}
+    <p class="form-ok" role="status">¡Premio canjeado! Que lo disfrutes.</p>
+    {% elif aviso == 'codigo_vencido' %}
+    <p class="form-error" role="alert">
+      El código de la caja ya cambió. Vuelve a escanear el de la pantalla para canjear.
+    </p>
+    {% elif aviso == 'sin_premio' %}
+    <p class="form-error" role="alert">No tienes premios por canjear en este momento.</p>
+    {% endif %}
+
+    <div class="sellos">
+      {% for i in range(requeridos) %}
+      <span class="sello {% if i < disponibles %}sello-lleno{% endif %}">
+        {%- if i < disponibles %}★{% endif -%}
+      </span>
+      {% endfor %}
+    </div>
+
+    <p class="progreso">
+      {% if faltan == 0 %}
+        ¡Completaste tu tarjeta!
+      {% elif faltan == 1 %}
+        Te falta <strong>1 sello</strong> para tu premio.
+      {% else %}
+        Te faltan <strong>{{ faltan }} sellos</strong> para tu premio.
+      {% endif %}
+    </p>
+
+    {% for premio in premios %}
+    <section class="premio">
+      <h2>Tienes un premio esperando</h2>
+      <p>{{ premio.reward_text or programa.reward }}</p>
+      {% if puede_canjear and loop.first %}
+      <form method="post" action="/tarjeta/{{ card.token }}/canjear">
+        <input type="hidden" name="codigo" value="{{ codigo }}" />
+        <button type="submit" class="btn btn-primary">Canjear ahora</button>
+      </form>
+      {% elif loop.first %}
+      <p><strong>Para canjearlo, escanea el código de la caja.</strong></p>
+      {% endif %}
+    </section>
+    {% endfor %}
+
+    {% if placement %}
+    <!-- El paso de reseña es el mismo de siempre: un click a Google para todos,
+         canal privado siempre disponible como agregado. No se filtra a nadie ni
+         se pregunta una calificación antes: eso iría contra las políticas de
+         Google y está prohibido en este proyecto. -->
+    <section class="bloque-resena">
+      <p class="subtitle">¿Nos ayudas con una reseña? Toma menos de un minuto.</p>
+      <a class="btn btn-primary" href="/r/{{ placement.token }}/go">Dejar reseña en Google</a>
+      <a class="link-secondary" href="/r/{{ placement.token }}">¿Prefieres contárnoslo en privado?</a>
+    </section>
+    {% endif %}
+
+    <p class="guardar">
+      Guarda esta página en tu teléfono para no perder tus sellos.
+      Esta tarjeta no guarda tu nombre ni tu teléfono.
+    </p>
+  </main>
+</body>
+</html>

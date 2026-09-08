@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Caja — {{ business.name }}</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card caja">
+    <h1>Sellos de {{ business.name }}</h1>
+
+    {% if not programa or not programa.active %}
+    <p class="subtitle">
+      Todavía no tienes el programa de sellos activo.
+    </p>
+    <a class="btn btn-primary" href="/panel/fidelizacion">Configurarlo</a>
+    {% else %}
+    <p class="subtitle">Pide al cliente que escanee este código para sumar su sello.</p>
+
+    <img class="caja-qr" id="qr" src="" alt="Código para sellar" />
+    <p class="caja-codigo" id="codigo">······</p>
+    <p class="caja-cuenta" id="cuenta">Cambia cada minuto</p>
+
+    <div class="caja-ayuda">
+      <p><strong>Premio:</strong> {{ programa.reward }} — cada {{ programa.stamps_required }} sellos.</p>
+      <p>
+        El código cambia solo. Si un cliente dice que le salió vencido, basta con que vuelva a
+        escanear.
+      </p>
+      <p>
+        Para <strong>canjear un premio</strong>, el cliente abre su tarjeta y escanea este mismo
+        código: recién ahí le aparece el botón para cobrarlo.
+      </p>
+    </div>
+
+    <a class="link-secondary" href="/panel/fidelizacion">Configurar el programa</a>
+    {% endif %}
+  </main>
+
+  <script src="/static/caja.js"></script>
+</body>
+</html>

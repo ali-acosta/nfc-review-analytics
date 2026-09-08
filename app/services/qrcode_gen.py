@@ -28,6 +28,18 @@ def generate_qr_for_token(token: str) -> Path:
     return out_path
 
 
+def qr_png_bytes_for_url(url: str) -> bytes:
+    """QR de una URL cualquiera, en memoria.
+
+    Existe aparte de `qr_png_bytes` porque no todos los QR del producto apuntan
+    a una placa: el de la caja lleva el código rotativo del programa de sellos y
+    cambia cada minuto, así que no tiene token propio ni podría cachearse.
+    """
+    buffer = io.BytesIO()
+    qrcode.make(url).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
 def qr_png_bytes(token: str) -> bytes:
     """El mismo QR, en memoria, para servirlo por HTTP.
 
@@ -35,6 +47,4 @@ def qr_png_bytes(token: str) -> bytes:
     escribir un archivo por cada petición es trabajo inútil que además deja basura
     que nadie limpia.
     """
-    buffer = io.BytesIO()
-    qrcode.make(target_url(token)).save(buffer, format="PNG")
-    return buffer.getvalue()
+    return qr_png_bytes_for_url(target_url(token))

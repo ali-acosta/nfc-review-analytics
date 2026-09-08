@@ -6,9 +6,14 @@
 # accidental o una base perdida se lleva meses de datos con los que además se
 # arma la facturación.
 #
+# Desde el programa de sellos también se lleva los sellos y los premios, que son
+# peores de perder que el historial: no es un número que le falte al dueño, es un
+# cliente que ya juntó los suyos parado en el mostrador mientras el sistema le
+# dice que no tiene nada.
+#
 # Se guarda como artifact de GitHub, que retiene 90 días sin costo. No reemplaza
 # a un respaldo de la base entera, pero cubre lo que de verdad no se puede
-# reconstruir: las visitas y las quejas.
+# reconstruir: las visitas, las quejas y los sellos.
 
 name: Respaldo semanal
 

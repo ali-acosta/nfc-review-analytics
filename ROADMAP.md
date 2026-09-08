@@ -80,13 +80,37 @@ por encima del Módulo 3.
 ### Módulo 3 — Motor de IA / sentimiento · ⏳ Último
 Con 20 reseñas al mes, un dueño no necesita NLP. Es una función de demo, no de retención.
 
+### Módulo 6 — Fidelización digital sin app · ✅ Fase 1 funcionando
+Tarjeta de sellos digital, para atacar la **frecuencia de compra** y justificar una suscripción
+más alta. Diseño y análisis de costos en
+[docs/fidelizacion-diseno.md](docs/fidelizacion-diseno.md).
+
+**Fase 1 construida y probada de punta a punta** ($0, sin trámites, sin datos personales): el
+dueño configura el programa en `/panel/fidelizacion`, deja abierta la pantalla de la caja en
+`/panel/caja`, y el cliente escanea el QR que rota cada minuto para sumar su sello y ver su
+tarjeta. Premio automático al completar, canje que exige otra vez el código de la caja y que no
+se puede cobrar dos veces. Los sellos y premios entran al respaldo semanal. 44 tests propios.
+
+Fases siguientes, en orden de costo: Google Wallet ($0, requiere cuenta de emisor), Apple Wallet
+($99/año para toda la plataforma) y recién al final la mensajería de pago.
+
+Tres cosas que salieron del diseño y que conviene no volver a discutir desde cero:
+- **WhatsApp no es gratis y su costo escala con el éxito del cliente** (~$0.059 USD por mensaje de
+  marketing en Chile, uno de los más caros de LATAM). A 300 clientes fidelizados y 2 mensajes al
+  mes, Meta se lleva ~$35: el piso completo de la suscripción que el combo pretende cobrar. Por eso
+  el orden es Wallet primero y WhatsApp al final, al revés del pitch original.
+- **El sello vale dinero, así que no puede darlo la placa de la mesa**: es pública y está pegada
+  ahí. Lo da la caja, con un código que rota cada minuto — la misma fricción que el timbre de papel
+  que reemplaza.
+- **El paso de reseña no cambia**: el pitch original incluía review gating y eso no se construye.
+
 ### Infraestructura — Migraciones · ✅ Resuelto
 Antes, cualquier cambio de esquema obligaba a borrar la base: con un cliente instalado, eso es
 perder su historial. Ahora hay Alembic (`alembic upgrade head`, aplicado solo en cada despliegue
 desde `render.yaml`) y un test que falla si los modelos y las migraciones se desincronizan.
 Ya se estrenó agregando la columna del correo de alertas, con los 1915 taps de demo intactos.
 
-### Calidad — Tests · ✅ 352 tests
+### Calidad — Tests · ✅ 396 tests
 `pip install -r requirements-dev.txt && pytest -q`. Corren solos en cada push, sobre SQLite y Postgres
 (`.github/workflows/tests.yml`). Protegen sobre todo la métrica de conversión —que ya se rompió
 una vez en silencio— y la regla de no reintroducir el filtrado de reseñas.
@@ -161,7 +185,7 @@ no es cliente nuestra y que no tiene forma de pedir que la borren. Lo que hay ho
 
 # Próximos pasos
 
-*Estado al 2026-09-03, cierre de la segunda jornada. Esta es la sección para leer primero al
+*Estado al 2026-09-04, cierre de la tercera jornada. Esta es la sección para leer primero al
 retomar.*
 
 > Documentos que hay que leer antes de tocar código:
@@ -178,7 +202,9 @@ uvicorn app.main:app --reload
 
 | Qué | Dónde |
 |---|---|
-| Panel del comercio | `/panel/login` · `demo@cafe.cl` (el usuario cambió la clave probando) |
+| Panel del comercio | `/panel/login` · `demo@cafe.cl` — la clave se reemite con `python -m scripts.new_client --reset-password 4VB6_OoK` |
+| Programa de sellos | `/panel/fidelizacion` — ya activo en Café Demo: 3 sellos, "El 4° café gratis" |
+| Pantalla de la caja | `/panel/caja` — el QR que el cliente escanea para sellar |
 | Recuperar la clave | `/panel/recuperar` — necesita SMTP para llegar; sin él lo dice y no finge |
 | Panel del operador | `/admin` · clave **`admin-de-prueba-1234`** (provisional, ver abajo) |
 | Landing de demo | `/r/ZTYFEMtc` (Café Demo, "Mesa 5") |
@@ -194,7 +220,7 @@ El `.env` local tiene `BASE_URL=http://localhost:8000` y un `ADMIN_PASSWORD_HASH
 
 Funciona de punta a punta, el usuario probó los 27 puntos de la ruta manual y **ya no queda
 ninguna decisión suya pendiente en la parte de código**: respondió el bloque B entero ("todas las
-recomendadas") y está implementado. 352 tests en verde.
+recomendadas") y está implementado. 396 tests en verde.
 
 Lo construido en esta jornada:
 
@@ -207,10 +233,25 @@ Lo construido en esta jornada:
   contraseña. Ya no hay que dictarle una por teléfono. Si no hay SMTP, el alta vuelve al camino
   de antes e imprime la clave, para no dejar al cliente sin poder entrar.
 
+## Lo que se construyó el 2026-09-04
+
+**Módulo 6, Fase 1: el programa de sellos.** Ver arriba y
+[docs/fidelizacion-diseno.md](docs/fidelizacion-diseno.md). Lo que hay que saber al retomar:
+
+- Salió de una idea del usuario que venía con un pitch adjunto. **Tres de los supuestos de costo
+  de ese pitch eran falsos** y están corregidos en el documento de diseño con sus números: WhatsApp
+  ya no tiene mil conversaciones gratis (hoy es ~$0.059 USD por mensaje de marketing en Chile, y a
+  300 clientes con dos mensajes al mes se come el piso de la suscripción que el propio pitch
+  propone cobrar), Apple Wallet exige $99/año de certificado, y el re-enganche por Wallet cuesta
+  cero por mensaje. De ahí que el orden sea Wallet primero y mensajería al final.
+- El pitch también proponía **reintroducir el review gating** después del sello. No se construyó y
+  no se va a construir. `TestLaTarjetaNoRompeLaPoliticaDeGoogle` falla si vuelve.
+- Falta la prueba con un teléfono de verdad, igual que el resto del producto (ver bloque A).
+
 ## Lo que se puede construir sin esperar a nadie
 
-Se acabó lo que tenía sentido hacer sin el usuario. Lo que queda en la lista de desarrollos son
-cosas que no corresponde adelantar:
+Se acabó otra vez lo que tenía sentido hacer sin el usuario. Lo que queda en la lista de
+desarrollos son cosas que no corresponde adelantar:
 
 1. **Módulo 2, sincronización con Google Business Profile** (9.3). Es el módulo que *prueba* el
    número que se vende, pero no se puede empezar hasta que Google apruebe el acceso a la API, y

@@ -15,7 +15,7 @@ from app.dashboard.dash_app import create_dash_app
 from app.database import SessionLocal, init_db
 from app.logging_config import configure_logging
 from app.middleware import DashboardAuthMiddleware, SecurityHeadersMiddleware
-from app.routers import admin, auth, redirect, reports
+from app.routers import admin, auth, fidelizacion, panel_sellos, redirect, reports
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 
@@ -103,6 +103,8 @@ app.include_router(redirect.router)
 app.include_router(reports.router)
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(fidelizacion.router)
+app.include_router(panel_sellos.router)
 
 dash_app = create_dash_app()
 app.mount("/dashboard", WSGIMiddleware(dash_app.server))

@@ -108,6 +108,14 @@ login_limiter = RateLimiter(max_hits=8, window_seconds=900, name="login")
 # pasar hasta un mal día real en el local y corta el abuso.
 feedback_limiter = RateLimiter(max_hits=10, window_seconds=600, name="comentarios")
 
+# Creación de tarjetas de fidelización. Limita solo dar de alta una tarjeta
+# nueva, nunca sumar un sello: en un local todos los clientes salen por el mismo
+# WiFi, y un tope sobre el sello dejaría a media fila sin el suyo. Lo que esto
+# frena es que alguien genere tarjetas en serie para llenar la base. Treinta cada
+# diez minutos cubre de sobra a un local que estrena el programa y tiene a todos
+# inscribiéndose a la vez.
+tarjeta_limiter = RateLimiter(max_hits=30, window_seconds=600, name="tarjetas")
+
 # Recuperación de contraseña. Cada intento acertado dispara un correo, así que
 # sin techo el formulario sería un cañón de correos gratis contra la casilla de
 # un cliente (y contra la cuota diaria del proveedor SMTP). Cinco cada quince

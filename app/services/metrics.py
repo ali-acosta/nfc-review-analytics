@@ -19,10 +19,12 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.database import SessionLocal
-from app.models import Feedback, Placement, Tap
+from app.models import Feedback, LoyaltyCard, Placement, Reward, Stamp, Tap
 
 TAP_COLUMNS = ["created_at", "session_id", "outcome", "label"]
 FEEDBACK_COLUMNS = ["id", "created_at", "rating", "contact", "message", "label", "resolved_at"]
+STAMP_COLUMNS = ["id", "created_at", "tarjeta"]
+REWARD_COLUMNS = ["id", "issued_at", "redeemed_at", "sellos", "premio", "tarjeta"]
 
 
 def _to_local(series: pd.Series) -> pd.Series:
@@ -110,6 +112,59 @@ def load_feedback(
         # confunde a cualquiera que la exporte y compare las dos columnas.
         df["created_at"] = _to_local(df["created_at"])
         df["resolved_at"] = _to_local(df["resolved_at"])
+    return df
+
+
+def load_sellos(business_id: int) -> pd.DataFrame:
+    """Los sellos del programa de fidelización, para respaldo y exportación.
+
+    Vive aquí y no en `fidelizacion.py` por la misma razón que las dos funciones
+    de arriba: es "leer los datos de un cliente en hora local", y la conversión
+    a hora local tiene que salir de un solo lugar. `fidelizacion.py` se queda con
+    las reglas —quién puede sellar y cuándo—, que es otra responsabilidad.
+
+    Sin período: un sello no caduca, y el respaldo tiene que llevárselos todos.
+    """
+    query = (
+        select(Stamp.id, Stamp.created_at, LoyaltyCard.token)
+        .join(LoyaltyCard, Stamp.card_id == LoyaltyCard.id)
+        .where(Stamp.business_id == business_id)
+        .order_by(Stamp.created_at)
+    )
+    with SessionLocal() as db:
+        rows = db.execute(query).all()
+    df = pd.DataFrame(rows, columns=STAMP_COLUMNS)
+    if not df.empty:
+        df["created_at"] = _to_local(df["created_at"])
+    return df
+
+
+def load_premios(business_id: int) -> pd.DataFrame:
+    """Los premios ganados y su canje.
+
+    Es lo que el comercio le debe a sus clientes: perder esta tabla significa
+    que alguien que ya juntó sus sellos llega al mostrador y el sistema le dice
+    que no tiene nada. Por eso entra al respaldo semanal junto con las visitas.
+    """
+    query = (
+        select(
+            Reward.id,
+            Reward.issued_at,
+            Reward.redeemed_at,
+            Reward.stamps_consumed,
+            Reward.reward_text,
+            LoyaltyCard.token,
+        )
+        .join(LoyaltyCard, Reward.card_id == LoyaltyCard.id)
+        .where(Reward.business_id == business_id)
+        .order_by(Reward.issued_at)
+    )
+    with SessionLocal() as db:
+        rows = db.execute(query).all()
+    df = pd.DataFrame(rows, columns=REWARD_COLUMNS)
+    if not df.empty:
+        df["issued_at"] = _to_local(df["issued_at"])
+        df["redeemed_at"] = _to_local(df["redeemed_at"])
     return df
 
 

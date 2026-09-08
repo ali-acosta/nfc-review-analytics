@@ -335,3 +335,39 @@ Son cinco minutos y cubren lo que la suite no ve. El detalle está en
       avisamos al dueño" y no mostrarte ninguna clave.
 - [ ] En el login, entrar a "¿Olvidaste tu contraseña?": sin SMTP configurado debe decirlo
       claramente, no fingir que mandó un correo.
+
+---
+
+## F · Probar el programa de sellos (nuevo, 2026-09-04)
+
+Está construido y probado de punta a punta por código, pero **nadie lo ha visto con dos teléfonos
+de verdad**, que es donde se nota si sirve. Ya está activo en Café Demo: 3 sellos, "El 4° café
+gratis". Si no tienes a mano la clave del panel, reemítela con
+`python -m scripts.new_client --reset-password 4VB6_OoK`: la imprime una sola vez.
+
+La idea: tú haces de cajero en el computador, y usas tu celular como si fueras el cliente.
+
+- [ ] Entra a `/panel/fidelizacion` y mira los números del programa.
+- [ ] Abre `/panel/caja` y déjala abierta. **Confirma que el código cambia solo cada minuto** y que
+      el contador baja. Esta es la pantalla que va a estar todo el día en el mostrador.
+- [ ] Con el celular, escanea el QR de esa pantalla. Debe crearte una tarjeta y sumarte un sello.
+- [ ] **Escanea otra vez de inmediato**: tiene que decirte que ya tienes tu sello de hoy y no
+      sumarte otro. Es lo que impide que alguien se regale el premio en cinco minutos.
+- [ ] Espera a que el código cambie y **escanea una foto del código viejo**: tiene que rechazarlo.
+- [ ] Guarda la página de la tarjeta en la pantalla de inicio del celular y ábrela después: tus
+      sellos tienen que seguir ahí.
+- [ ] Desde la landing de la mesa (`/r/ZTYFEMtc`), busca "Ver mi tarjeta de sellos" abajo del todo.
+      **Confirma que el botón de Google sigue siendo lo primero de la página.**
+
+**Lo que quiero que mires con ojo crítico**, porque es una decisión de producto y es tuya:
+
+1. ¿La fricción de escanear el código de la caja es aceptable para un cajero con fila? Si te
+   parece demasiado, la alternativa es más débil pero existe (ver el documento de diseño).
+2. ¿El premio y la cantidad de sellos se configuran fácil, o le pedirías algo más al dueño?
+3. ¿Se entiende la tarjeta sin que nadie te la explique?
+
+**Y una advertencia**: cuando lo muestres como argumento de venta, el precio del combo que
+proponía el pitch ($35-60/mes) da por hecho un WhatsApp que **ya no es gratis** y que a volumen
+se come la suscripción entera. Los números están en
+[fidelizacion-diseno.md](fidelizacion-diseno.md). Lo que sí puedes vender hoy sin costo variable
+es la tarjeta de sellos y, más adelante, el pase de Google Wallet.

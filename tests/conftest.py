@@ -27,7 +27,16 @@ from sqlalchemy import delete  # noqa: E402
 
 from app.database import Base, SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
-from app.models import Business, Feedback, Placement, Tap  # noqa: E402
+from app.models import (  # noqa: E402
+    Business,
+    Feedback,
+    LoyaltyCard,
+    LoyaltyProgram,
+    Placement,
+    Reward,
+    Stamp,
+    Tap,
+)
 
 PHONE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148"
 BOT_UA = "WhatsApp/2.23.20.79 A"
@@ -42,9 +51,13 @@ def _schema():
 
 @pytest.fixture(autouse=True)
 def _clean():
-    """Cada test parte de una base vacía. Se borra en orden hijo → padre."""
+    """Cada test parte de una base vacía. Se borra en orden hijo → padre.
+
+    `LoyaltyProgram` va antes que `Placement` porque apunta a la placa que se le
+    crea al activar el programa.
+    """
     with SessionLocal() as db:
-        for model in (Tap, Feedback, Placement, Business):
+        for model in (Stamp, Reward, LoyaltyCard, LoyaltyProgram, Tap, Feedback, Placement, Business):
             db.execute(delete(model))
         db.commit()
     yield
@@ -71,6 +84,36 @@ def negocio():
             mesa_id=mesa.id,
             meson=meson.token,
             meson_id=meson.id,
+        )
+
+
+@pytest.fixture
+def programa(negocio):
+    """Un negocio con programa de sellos activo, tal como lo deja el panel del dueño.
+
+    Tres sellos y no cinco para que un test pueda completar una tarjeta sin
+    inventar seis días distintos.
+    """
+    with SessionLocal() as db:
+        placa = Placement(business_id=negocio.id, label="Caja (fidelización)")
+        db.add(placa)
+        db.flush()
+        prog = LoyaltyProgram(
+            business_id=negocio.id,
+            placement_id=placa.id,
+            stamps_required=3,
+            reward="El 4° café gratis",
+        )
+        db.add(prog)
+        db.commit()
+        return SimpleNamespace(
+            id=prog.id,
+            token=prog.token,
+            secret=prog.secret,
+            requeridos=prog.stamps_required,
+            premio=prog.reward,
+            placa=placa.token,
+            negocio=negocio,
         )
 
 
